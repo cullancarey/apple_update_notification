@@ -142,7 +142,7 @@ def authenticate_twitter_client():
     return twitter_client
 
 
-def lambda_handler():
+def lambda_handler(event, context):
     """Main function for lambda function"""
 
     today = datetime.now().strftime("%Y-%m-%d")
