@@ -81,7 +81,7 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
             "Sid": "AllowS3",
             "Effect": "Allow",
             "Action": ["s3:GetObject", "s3:ListBucket"],
-            "Resource": "arn:aws:s3:::${local.s3_bucket_for_lambda}/*"
+            "Resource": "arn:aws:s3:::${aws_s3_bucket.apple_update_notification_bucket.id}/*"
         }
     ]
 }
