@@ -14,62 +14,60 @@ def compare_lists(today, release_list, db_list, conn, release_statements):
     tweets about new updates if they exist"""
     iOS_msg = f"iOS release available! \n{release_statements[0]} \n{datetime.now()} \n#iOS #apple"
     macOS_msg = f"macOS release available! \n{release_statements[1]} \n{datetime.now()} \n#macOS #apple"
-    tv_os_msg = f"tvOS release available! \n{release_statements[2]} \n{datetime.now()} \n#tvOS #apple"
+    tvOS_msg = f"tvOS release available! \n{release_statements[2]} \n{datetime.now()} \n#tvOS #apple"
     watchOS_msg = f"watchOS release available! \n{release_statements[3]} \n{datetime.now()} \n#watchOS #apple"
-    if release_list["iOS"] != db_list["iOS"]:
-        # twitter_client.update_status(iOS_msg)
-        #   update_item(
-        # conn, str(today), str(
-        #     release_list['iOS']))
-        print("updating iOS item")
-        print(iOS_msg)
-    else:
+    if (not db_list.get("iOS", False)) or (release_list["iOS"] == db_list.get("iOS")):
         print("no new iOS updates")
-    if release_list["macOS"] != db_list["macOS"]:
-        # twitter_client.update_status(macOS_msg)
-        #   update_item(
-        # conn, str(today), str(
-        #         release_list['macOS']))
-        print("updating macOS item")
-        print(macOS_msg)
     else:
+        if release_list["iOS"] != db_list.get("iOS"):
+            print("updating iOS item")
+            update_item(conn, str(today), "iOS", release_list["iOS"])
+            print(iOS_msg)
+            # twitter_client.update_status(iOS_msg)
+    if (not db_list.get("macOS", False)) or (
+        release_list["macOS"] == db_list.get("macOS")
+    ):
         print("no new macOS updates")
-    if release_list["tvOS"] != db_list["tvOS"]:
-        # twitter_client.update_status(tv_os_msg)
-        #   update_item(
-        # conn, str(today), str(
-        #             release_list['tvOS']))
-        print("updating tvOs item")
-        print(tv_os_msg)
     else:
+        if release_list["macOS"] != db_list.get("macOS"):
+            print("updating macOS item")
+            update_item(conn, str(today), "macOS", release_list["macOS"])
+            print(macOS_msg)
+            # twitter_client.update_status(macOS_msg)
+    if (not db_list.get("tvOS", False)) or (
+        release_list["tvOS"] == db_list.get("tvOS")
+    ):
         print("no new tvOS updates")
-    if release_list["watchOS"] != db_list["watchOS"]:
-        # twitter_client.update_status(watchOS_msg)
-        #   update_item(
-        # conn, str(today), str(
-        #                 release_list['watchOS']))
-        print("updating watchOS item")
-        print(watchOS_msg)
     else:
+        if release_list["tvOS"] != db_list.get("tvOS"):
+            print("updating tvOS item")
+            update_item(conn, str(today), "tvOS", release_list["tvOS"])
+            print(tvOS_msg)
+            # twitter_client.update_status(tvOS_msg)
+    if (not db_list.get("watchOS", False)) or (
+        release_list["watchOS"] == db_list.get("watchOS")
+    ):
         print("no new watchOS updates")
+    else:
+        if release_list["watchOS"] != db_list.get("watchOS"):
+            print("updating watchOS item")
+            update_item(conn, str(today), "watchOS", release_list["watchOS"])
+            print(watchOS_msg)
+            # twitter_client.update_status(watchOS_msg)
 
 
-def update_item(
-    table, rowid, iOS_release, macOS_release, tvOS_release, watchOS_release
-):
+def update_item(table, rowid, device, release_dict):
     """Updates DynamoDB with new release value"""
     try:
-        table.update_item(
-            Item={
-                "RowId": rowid,
-                "iOS": iOS_release,
-                "macOS": macOS_release,
-                "tvOS": tvOS_release,
-                "watchOS": watchOS_release,
-            }
+        updated = table.update_item(
+            Key={"RowId": rowid},
+            UpdateExpression=f"SET {device}=:{device}",
+            ExpressionAttributeValues={f":{device}": release_dict},
+            ReturnValues="UPDATED_NEW",
         )
-    except ClientError:
-        print(ClientError)
+        print(f"Updated releases: {updated.get('Attributes', 'No new releases.')}")
+    except ClientError as err:
+        print(f"Exception ocurred updating item in DynamoDB: {err}")
     else:
         print("Successfully uploaded item to dynamodb.")
 
@@ -113,7 +111,6 @@ def get_latest_releases(today):
         y = re.findall(r"[\d\.]+", i)
         for x in y:
             if "." in x and len(x) > 1:
-                print(x)
                 if x[-1] == ".":
                     releases.append(x[0:-1])
                 if x[-1].isdigit():
@@ -163,13 +160,19 @@ def lambda_handler():
     )
     tweet_date = tweet_date.group(0)
     print(f"tweet date: {tweet_date}")
-    # tweet_date = "2022-10-24"
+    # tweet_date = "2022-10-31"
 
     # Get latest releases in dynamo
     dynamodb = boto3.resource("dynamodb")
     table = dynamodb.Table("apple_os_releases")
     dynamo_releases = get_item(table, tweet_date)
-    # releases = {'RowId': '2022-10-24', 'macOS': '1', 'tvOS': '16', 'watchOS': '9.1', 'iOS': '16.1'}
+    # releases = {
+    #     "RowId": "2022-10-24",
+    #     "macOS": "10",
+    #     "tvOS": "16",
+    #     "watchOS": "9.2",
+    #     "iOS": "16.0",
+    # }
 
     # Check if release is up to date
     print(f"Website list: {releases}")
@@ -177,6 +180,3 @@ def lambda_handler():
 
     # Compares results from apple website and dynamo table
     compare_lists(today, releases, dynamo_releases, table, release_statements)
-
-
-lambda_handler()
