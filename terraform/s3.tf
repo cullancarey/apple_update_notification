@@ -4,7 +4,7 @@
 
 
 resource "aws_s3_bucket" "apple_update_notification_bucket" {
-  bucket = local.s3_bucket_for_lambda
+  bucket = "apple-update-notification"
   tags = {
     "Name" = "${local.s3_bucket_for_lambda}"
   }
