@@ -74,8 +74,8 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
                 "logs:PutLogEvents",
                 "logs:CreateLogGroup"
             ],
-            "Resource": "["arn:aws:logs:us-east-2:${local.account_id}:log-group:/aws/lambda/${local.lambda_name}:*",
-                            "arn:aws:logs:us-east-2:${local.account_id}:*"]"
+            "Resource": ["arn:aws:logs:us-east-2:${local.account_id}:log-group:/aws/lambda/${local.lambda_name}:*",
+                            "arn:aws:logs:us-east-2:${local.account_id}:*"]
         },{
             "Sid": "AllowDynamoDB",
             "Effect": "Allow",
