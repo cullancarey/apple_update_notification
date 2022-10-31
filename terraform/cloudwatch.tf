@@ -4,7 +4,7 @@
 
 resource "aws_cloudwatch_event_rule" "apple_update_notification_lambda_rule" {
   name                = "${local.lambda_name}_trigger"
-  schedule_expression = "cron(10 5,9,13,17,21,1 ? * * *)"
+  schedule_expression = "rate(1 hour)"
   description         = "Cloudwatch event rule to trigger the lambda function ${aws_lambda_function.apple_update_notification_lambda.function_name}"
 }
 
