@@ -11,7 +11,7 @@ resource "aws_s3_object" "apple_update_notification_lambda_file" {
 }
 
 resource "aws_lambda_function" "apple_update_notification_lambda" {
-  s3_bucket     = local.s3_bucket_for_lambda
+  s3_bucket     = aws_s3_bucket.apple_update_notification_bucket.id
   s3_key        = aws_s3_object.apple_update_notification_lambda_file.id
   function_name = local.lambda_name
   role          = aws_iam_role.iam_for_apple_update_notification_lambda.arn
