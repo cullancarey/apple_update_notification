@@ -4,7 +4,7 @@
 
 
 resource "aws_s3_object" "apple_update_notification_lambda_file" {
-  bucket      = local.s3_bucket_for_lambda
+  bucket      = aws_s3_bucket.apple_update_notification_bucket.id
   key         = "${local.lambda_name}.zip"
   source      = "lambda_build/${local.lambda_name}.zip"
   source_hash = filemd5("lambda_build/${local.lambda_name}.zip")
