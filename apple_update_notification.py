@@ -65,10 +65,10 @@ def update_item(table, rowid, device, release_dict):
             ExpressionAttributeValues={f":{device}": release_dict},
             ReturnValues="UPDATED_NEW",
         )
-        print(f"Updated releases: {updated.get('Attributes', 'No new releases.')}")
     except ClientError as err:
         print(f"Exception ocurred updating item in DynamoDB: {err}")
     else:
+        print(f"Updated releases: {updated.get('Attributes', 'No new releases.')}")
         print("Successfully uploaded item to dynamodb.")
 
 
