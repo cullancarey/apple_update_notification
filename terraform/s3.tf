@@ -6,7 +6,7 @@
 resource "aws_s3_bucket" "apple_update_notification_bucket" {
   bucket = "apple-update-notification"
   tags = {
-    "Name" = "${local.s3_bucket_for_lambda}"
+    "Name" = "apple-update-notification"
   }
 }
 
@@ -27,7 +27,7 @@ resource "aws_s3_bucket_policy" "allow_access_from_lambda_user" {
                 "s3:GetObject",
                 "s3:ListBucket"
             ],
-            "Resource": ["arn:aws:s3:::${local.s3_bucket_for_lambda}/*", "arn:aws:s3:::${local.s3_bucket_for_lambda}"]
+            "Resource": ["arn:aws:s3:::${aws_s3_bucket.apple_update_notification_bucket.id}/*", "arn:aws:s3:::${aws_s3_bucket.apple_update_notification_bucket.id}"]
         }
     ]
 }
