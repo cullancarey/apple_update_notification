@@ -84,7 +84,7 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
                 "dynamodb:GetItem",
                 "dynamodb:UpdateItem"
             ],
-            "Resource": "arn:aws:dynamodb:us-east-2:${local.account_id}:table/apple_os_releases"
+            "Resource": "arn:aws:dynamodb:us-east-2:${local.account_id}:table/apple_os_releases_${var.environment}"
         },
         {
             "Sid": "AllowS3",

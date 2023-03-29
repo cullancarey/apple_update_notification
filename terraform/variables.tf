@@ -4,10 +4,10 @@ variable "root_domain_name" {
   description = "The domain name of my Apple update notification project sign up page."
 }
 
-variable "subscription_intake_api_domain" {
-  type        = string
-  description = "The domain name of the api gateway resource that intakes the subscription information."
-}
+# variable "subscription_intake_api_domain" {
+#   type        = string
+#   description = "The domain name of the api gateway resource that intakes the subscription information."
+# }
 
 variable "environment" {
   type        = string
