@@ -1,9 +1,10 @@
 name: Format Code
 
-on: 
+on:
   push:
     branches-ignore:
       - main
+      - develop
 
 jobs:
   format-black:
@@ -18,10 +19,9 @@ jobs:
         pip install black
     - name: Formatting the code with black
       run: |
-        black $(git ls-files '*.py')
+        black $(git ls-files 'lambdas/*.py')
 
   run-pylint:
-    needs: format-black
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -36,7 +36,6 @@ jobs:
         pylint --rcfile=.pylintrc $(git ls-files '*.py')
 
   checkov:
-    needs: run-pylint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -49,5 +48,5 @@ jobs:
         uses: bridgecrewio/checkov-action@master
         with:
           directory: terraform/
-          framework: terraform 
+          framework: terraform
           config_file: .checkov.yaml

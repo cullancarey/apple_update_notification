@@ -1,10 +1,10 @@
-name: 'Deploy'
+name: 'Plan'
 
-on:
-  push:
-    branches:
-      - main
-      - develop
+on: [pull_request]
+
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
 
 jobs:
   build-lambda-package:
@@ -18,14 +18,14 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: lambda_build
-        path: apple_update_notification.zip
+        path: apple_web_scrape.zip
 
-  terraform-deploy-dev:
-    name: 'Terraform Deploy Dev'
-    runs-on: ubuntu-latest
+  terraform-plan-dev:
     needs: [build-lambda-package]
+    name: 'Dev - Plan Terraform'
+    if: github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-latest
     environment: development
-    if: endsWith(github.ref, '/develop')
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
@@ -43,10 +43,6 @@ jobs:
       with:
         path: ./terraform
 
-    - name: Display structure of downloaded files
-      run: ls -R
-      working-directory: ./terraform
-
     # Configure AWS Creds DEV
     - name: Configure AWS Credentials Dev
       uses: aws-actions/configure-aws-credentials@v2
@@ -62,7 +58,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
+      run: terraform init -backend-config=backend.develop.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -77,17 +73,17 @@ jobs:
       continue-on-error: false
 
       # On push to "main", build or change infrastructure according to Terraform configuration files
-    - name: Terraform Apply
+    - name: Terraform Plan
       id: apply
-      run: terraform apply --auto-approve -input=false
+      run: terraform plan -input=false -var-file="develop.tfvars"
 
 
-  terraform-deploy-prod:
-    name: 'Terraform Deploy Prod'
-    runs-on: ubuntu-latest
+  terraform-plan-prod:
     needs: [build-lambda-package]
+    name: 'Prod - Plan Terraform'
+    if: github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
     environment: production
-    if: endsWith(github.ref, '/main')
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
@@ -98,16 +94,12 @@ jobs:
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Download all workflow run artifacts
       uses: actions/download-artifact@v3
       with:
         path: ./terraform
-
-    - name: Display structure of downloaded files
-      run: ls -R
-      working-directory: ./terraform
 
     # Configure AWS Creds Prod
     - name: Configure AWS Credentials Prod
@@ -124,7 +116,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
+      run: terraform init -backend-config=backend.main.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -139,6 +131,6 @@ jobs:
       continue-on-error: false
 
       # On push to "main", build or change infrastructure according to Terraform configuration files
-    - name: Terraform Apply
+    - name: Terraform Plan
       id: apply
-      run: terraform apply --auto-approve -input=false
+      run: terraform plan -input=false -var-file="main.tfvars"
