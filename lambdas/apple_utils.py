@@ -1,6 +1,7 @@
 """module for python aws sdk"""
 import boto3
 import tweepy
+import os
 from botocore.exceptions import ClientError
 
 
@@ -25,10 +26,18 @@ def get_item(table, date):
 
 def authenticate_twitter_client():
     """Gets authenticated session from Twitter"""
-    client_id = get_param("apple_update_notification_api_key")
-    access_token = get_param("apple_update_notification_twitter_access_token")
-    access_token_secret = get_param("apple_update_notification_access_secret_token")
-    client_secret = get_param("apple_update_notification_secret_key")
+    client_id = get_param(
+        f"apple_update_notification_api_key_{os.environ['environment']}"
+    )
+    access_token = get_param(
+        f"apple_update_notification_twitter_access_token_{os.environ['environment']}"
+    )
+    access_token_secret = get_param(
+        f"apple_update_notification_access_secret_token_{os.environ['environment']}"
+    )
+    client_secret = get_param(
+        f"apple_update_notification_secret_key_{os.environ['environment']}"
+    )
 
     # Authenticate to Twitter
     auth = tweepy.OAuthHandler(f"{client_id}", f"{client_secret}")

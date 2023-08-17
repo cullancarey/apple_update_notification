@@ -20,6 +20,15 @@ resource "aws_lambda_function" "apple_update_notification_lambda" {
 
   source_code_hash = aws_s3_object.apple_update_notification_lambda_file.id
 
+  environment {
+    variables = {
+      website             = var.root_domain_name
+      environment         = var.environment
+      twitter_username    = var.twitter_username
+      dynamodb_table_name = aws_dynamodb_table.apple_os_updates_table.id
+    }
+  }
+
   runtime = "python3.9"
   timeout = 90
 }
@@ -55,17 +64,6 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
 {
     "Version": "2012-10-17",
     "Statement": [
-        {
-            "Sid": "AllowGetParameter",
-            "Effect": "Allow",
-            "Action": "ssm:GetParameter",
-            "Resource": [
-                "arn:aws:ssm:us-east-2:${local.account_id}:parameter/apple_update_notification_api_key",
-                "arn:aws:ssm:us-east-2:${local.account_id}:parameter/apple_update_notification_twitter_access_token",
-                "arn:aws:ssm:us-east-2:${local.account_id}:parameter/apple_update_notification_access_secret_token",
-                "arn:aws:ssm:us-east-2:${local.account_id}:parameter/apple_update_notification_secret_key"
-            ]
-        },
         {
             "Sid": "AllowCloudwatch",
             "Effect": "Allow",

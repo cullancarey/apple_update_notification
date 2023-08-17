@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-lambda-package]
     environment: development
+    if: endsWith(github.ref, '/develop')
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
@@ -47,19 +48,12 @@ jobs:
       working-directory: ./terraform
 
     # Configure AWS Creds DEV
-    - name: Configure AWS Credentials Management
+    - name: Configure AWS Credentials Dev
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        role-to-assume: arn:aws:iam::${{ vars.MANAGEMENT_ACCOUNT_ID }}:role/${{ vars.GITHUBDEPLOYROLE_MANAGEMENT }}
+        role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         role-session-name: terraform-deployment-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         aws-region: ${{ vars.REGION }}
-
-    - name: Configure AWS Credentials Dev
-      run: |
-        CREDS=$(aws sts assume-role --role-arn arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/TerraformDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }} --role-session-name terraform-deployment-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }})
-        echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.["Credentials"] | .["AccessKeyId"]')" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.["Credentials"] | .["SecretAccessKey"]')" >> $GITHUB_ENV
-        echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.["Credentials"] | .["SessionToken"]')" >> $GITHUB_ENV
 
     # Install the latest version of Terraform CLI
     - name: Setup Terraform
@@ -93,6 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-lambda-package]
     environment: production
+    if: endsWith(github.ref, '/main')
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
@@ -114,20 +109,13 @@ jobs:
       run: ls -R
       working-directory: ./terraform
 
-    # Configure AWS Creds DEV
-    - name: Configure AWS Credentials Management
+    # Configure AWS Creds Prod
+    - name: Configure AWS Credentials Prod
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        role-to-assume: arn:aws:iam::${{ vars.MANAGEMENT_ACCOUNT_ID }}:role/${{ vars.GITHUBDEPLOYROLE_MANAGEMENT }}
+        role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         role-session-name: terraform-deployment-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         aws-region: ${{ vars.REGION }}
-
-    - name: Configure AWS Credentials Prod
-      run: |
-        CREDS=$(aws sts assume-role --role-arn arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/TerraformDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }} --role-session-name terraform-deployment-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }})
-        echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.["Credentials"] | .["AccessKeyId"]')" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.["Credentials"] | .["SecretAccessKey"]')" >> $GITHUB_ENV
-        echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.["Credentials"] | .["SessionToken"]')" >> $GITHUB_ENV
 
     # Install the latest version of Terraform CLI
     - name: Setup Terraform

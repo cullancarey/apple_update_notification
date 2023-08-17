@@ -2,6 +2,7 @@
 import urllib3
 from bs4 import BeautifulSoup
 import re
+import os
 from datetime import datetime
 from botocore.exceptions import ClientError
 from apple_utils import (
@@ -16,58 +17,20 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
     and updates DynamoDB of the new records if they exist. Also
     tweets about new updates if they exist"""
     print(twitter_conn)
-    print(today)
-    print(db_table_conn)
     difference = {
         k: db_list[k]
         for k in db_list
         if k not in release_dictionary or release_dictionary[k] != db_list[k]
     }
-    print(f"difference: {difference}")
-    if (not db_list.get("iOS", False)) or (
-        release_dictionary["iOS"] == db_list.get("iOS")
-    ):
-        update_item(db_table_conn, str(today), "iOS", release_dictionary)
-        print("no new iOS updates")
-    else:
-        if release_dictionary["iOS"] != db_list.get("iOS"):
-            print("updating iOS item")
-            update_item(db_table_conn, str(today), "iOS", release_dictionary)
-            print(release_dictionary["release_statements"]["iOS"])
-            # twitter_conn.update_status(iOS_msg)
-    if (not db_list.get("macOS", False)) or (
-        release_dictionary["macOS"] == db_list.get("macOS")
-    ):
-        update_item(db_table_conn, str(today), "macOS", release_dictionary)
-        print("no new macOS updates")
-    else:
-        if release_dictionary["macOS"] != db_list.get("macOS"):
-            print("updating macOS item")
-            update_item(db_table_conn, str(today), "macOS", release_dictionary)
-            print(release_dictionary["release_statements"]["macOS"])
-            # twitter_conn.update_status(macOS_msg)
-    if (not db_list.get("tvOS", False)) or (
-        release_dictionary["tvOS"] == db_list.get("tvOS")
-    ):
-        update_item(db_table_conn, str(today), "tvOS", release_dictionary)
-        print("no new tvOS updates")
-    else:
-        if release_dictionary["tvOS"] != db_list.get("tvOS"):
-            print("updating tvOS item")
-            update_item(db_table_conn, str(today), "tvOS", release_dictionary)
-            print(release_dictionary["release_statements"]["tvOS"])
-            # twitter_conn.update_status(tvOS_msg)
-    if (not db_list.get("watchOS", False)) or (
-        release_dictionary["watchOS"] == db_list.get("watchOS")
-    ):
-        update_item(db_table_conn, str(today), "watchOS", release_dictionary)
-        print("no new watchOS updates")
-    else:
-        if release_dictionary["watchOS"] != db_list.get("watchOS"):
-            print("updating watchOS item")
-            update_item(db_table_conn, str(today), "watchOS", release_dictionary)
-            print(release_dictionary["release_statements"]["watchOS"])
-            # twitter_conn.update_status(watchOS_msg)
+
+    device_list = ["iOS", "macOS", "watchOS", "tvOS"]
+
+    for device in device_list:
+        if device in difference.keys():
+            # update_item(db_table_conn, str(today), device, release_dictionary)
+            print(db_table_conn, str(today), device, release_dictionary)
+        else:
+            print(f"No new updates for {device}")
 
 
 def update_item(table, rowid, device, release_dict):
@@ -84,10 +47,9 @@ def update_item(table, rowid, device, release_dict):
             ReturnValues="UPDATED_NEW",
         )
     except ClientError as err:
-        print(f"Exception ocurred updating item in DynamoDB: {err}")
+        print(f"Exception ocurred updating {device} in DynamoDB: {err}")
     else:
-        # print(f"Updated releases: {updated.get('Attributes', 'No new releases.')}")
-        print("Successfully uploaded item to dynamodb.")
+        print(f"Successfully uploaded {device} to dynamodb.")
 
 
 def get_latest_releases(today):
@@ -137,7 +99,7 @@ def get_latest_releases(today):
     return releases
 
 
-def lambda_handler():
+def lambda_handler(event, context):
     """Main function for lambda function"""
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -147,7 +109,7 @@ def lambda_handler():
     twitter_client = authenticate_twitter_client()
 
     # Look for date in last tweet to ensure we don't tweet more than once for an update
-    username = "UpdateApple_"
+    username = os.environ.get("twitter_username")
     tweets_list = twitter_client.user_timeline(screen_name=username, count=1)
     tweet = tweets_list[0]
     tweet_date_from_twitter = str(tweet.created_at)
@@ -155,22 +117,22 @@ def lambda_handler():
         "([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))", tweet_date_from_twitter
     )
     tweet_date = tweet_date.group(0)
-    print(f"tweet date: {tweet_date}")
     # TEST TWEET DATE
-    tweet_date = "2022-12-15"
+    tweet_date = "2022-12-20"
+    print(f"tweet date: {tweet_date}")
     # TEST TODAY DATE
-    today = "2022-12-17"
+    today = "2022-12-21"
 
     # Get latest releases in dynamo
     dynamodb = create_dynamodb_client()
-    table = dynamodb.Table("apple_os_releases")
+    table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
     dynamo_releases = get_item(table, tweet_date)
     releases = {
         "RowId": today,
-        "macOS": "12",
-        "tvOS": "12",
-        "watchOS": "9.2",
-        "iOS": "16.1.2",
+        "macOS": "16",
+        "tvOS": "11",
+        "watchOS": "9.6",
+        "iOS": "16.3.2",
         "release_statements": {
             "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
             "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
@@ -185,6 +147,3 @@ def lambda_handler():
 
     # Compares results from apple website and dynamo table
     compare_lists(today, releases, dynamo_releases, table, twitter_client)
-
-
-lambda_handler()
