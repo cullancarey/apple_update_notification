@@ -3,6 +3,7 @@ import urllib3
 from bs4 import BeautifulSoup
 import re
 import os
+import logging
 from datetime import datetime
 from botocore.exceptions import ClientError
 from apple_utils import (
@@ -11,12 +12,14 @@ from apple_utils import (
     create_dynamodb_client,
 )
 
+logging.basicConfig(level=logging.INFO)
+
 
 def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_conn):
     """Compares the releases from the website to what is in DynamoDB
     and updates DynamoDB of the new records if they exist. Also
     tweets about new updates if they exist"""
-    print(twitter_conn)
+    logging.info(twitter_conn)
     difference = {
         k: db_list[k]
         for k in db_list
@@ -28,9 +31,9 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
     for device in device_list:
         if device in difference.keys():
             # update_item(db_table_conn, str(today), device, release_dictionary)
-            print(db_table_conn, str(today), device, release_dictionary)
+            logging.info(db_table_conn, str(today), device, release_dictionary)
         else:
-            print(f"No new updates for {device}")
+            logging.info(f"No new updates for {device}")
 
 
 def update_item(table, rowid, device, release_dict):
@@ -47,9 +50,9 @@ def update_item(table, rowid, device, release_dict):
             ReturnValues="UPDATED_NEW",
         )
     except ClientError as err:
-        print(f"Exception ocurred updating {device} in DynamoDB: {err}")
+        logging.error(f"Exception ocurred updating {device} in DynamoDB: {err}")
     else:
-        print(f"Successfully uploaded {device} to dynamodb.")
+        logging.info(f"Successfully uploaded {device} to dynamodb.")
 
 
 def get_latest_releases(today):
@@ -119,7 +122,7 @@ def lambda_handler(event, context):
     tweet_date = tweet_date.group(0)
     # TEST TWEET DATE
     tweet_date = "2022-12-20"
-    print(f"tweet date: {tweet_date}")
+    logging.info(f"tweet date: {tweet_date}")
     # TEST TODAY DATE
     today = "2022-12-21"
 
@@ -142,8 +145,8 @@ def lambda_handler(event, context):
     }
 
     # Check if release is up to date
-    print(f"Website list: {releases}")
-    print(f"DynamoDB list: {dynamo_releases}")
+    logging.info(f"Website list: {releases}")
+    logging.info(f"DynamoDB list: {dynamo_releases}")
 
     # Compares results from apple website and dynamo table
     compare_lists(today, releases, dynamo_releases, table, twitter_client)
