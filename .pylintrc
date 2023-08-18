@@ -1,2 +1,2 @@
 [MASTER]
-disable=line-too-long,unused-argument,import-error,too-many-locals,too-many-statements,wrong-import-order,too-many-arguments,broad-except,duplicate-code,anomalous-backslash-in-string,invalid-name
+disable=line-too-long,unused-argument,import-error,too-many-locals,too-many-statements,wrong-import-order,too-many-arguments,broad-except,duplicate-code,anomalous-backslash-in-string,invalid-name,logging-fstring-interpolation
