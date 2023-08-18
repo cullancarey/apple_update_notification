@@ -21,7 +21,7 @@ jobs:
         path: apple_web_scrape.zip
 
   terraform-deploy-dev:
-    name: 'Terraform Deploy Dev'
+    name: 'Dev - Deploy Terraform'
     runs-on: ubuntu-latest
     needs: [build-lambda-package]
     environment: development
@@ -79,7 +79,7 @@ jobs:
 
 
   terraform-deploy-prod:
-    name: 'Terraform Deploy Prod'
+    name: 'Prod - Deploy Terraform'
     runs-on: ubuntu-latest
     needs: [build-lambda-package]
     environment: production
