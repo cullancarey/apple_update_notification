@@ -22,7 +22,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: lambda_build
-        path: apple_web_scrape.zip
+        path: apple_utils.zip
 
   terraform-deploy-dev:
     name: 'Dev - Deploy Terraform'
