@@ -6,11 +6,17 @@ locals {
   web_scrape_lambda_name = "apple_web_scrape"
 }
 
+data "archive_file" "apple_web_scrape_lambda" {
+  type        = "zip"
+  source_file = "../lambdas/${local.web_scrape_lambda_name}.py"
+  output_path = "${local.web_scrape_lambda_name}.zip"
+}
+
 resource "aws_s3_object" "apple_update_notification_lambda_file" {
   bucket      = aws_s3_bucket.apple_update_notification_bucket.id
   key         = "${local.web_scrape_lambda_name}.zip"
-  source      = "lambda_build/${local.web_scrape_lambda_name}.zip"
-  source_hash = filemd5("lambda_build/${local.web_scrape_lambda_name}.zip")
+  source      = "${local.web_scrape_lambda_name}.zip"
+  source_hash = data.archive_file.apple_web_scrape_lambda.output_base64sha512
 }
 
 resource "aws_lambda_function" "apple_update_notification_lambda" {
@@ -21,7 +27,9 @@ resource "aws_lambda_function" "apple_update_notification_lambda" {
   handler       = "${local.web_scrape_lambda_name}.lambda_handler"
   description   = "Lambda function for sending notifications about the newest apple releases"
 
-  source_code_hash = aws_s3_object.apple_update_notification_lambda_file.id
+  source_code_hash = data.archive_file.apple_web_scrape_lambda.output_base64sha512
+
+  layers = [aws_lambda_layer_version.lambda_utils_layer.arn]
 
   environment {
     variables = {

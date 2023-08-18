@@ -6,7 +6,7 @@ import os
 import logging
 from datetime import datetime
 from botocore.exceptions import ClientError
-from apple_utils import (
+from apple_utils.apple_utils import (
     authenticate_twitter_client,
     get_item,
     create_dynamodb_client,
