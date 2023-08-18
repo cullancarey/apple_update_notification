@@ -100,6 +100,15 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
             "Effect": "Allow",
             "Action": ["s3:GetObject", "s3:ListBucket"],
             "Resource": "arn:aws:s3:::${aws_s3_bucket.apple_update_notification_bucket.id}/*"
+        },
+        {
+            "Sid": "AllowParameterStore",
+            "Effect": "Allow",
+            "Action": ["ssm:GetParameter"],
+            "Resource": ["arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_api_key_${var.environment}",
+            "arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_secret_key_${var.environment}",
+            "arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
+            "arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_access_secret_token_${var.environment}"]
         }
     ]
 }
