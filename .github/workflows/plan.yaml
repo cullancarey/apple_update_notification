@@ -58,7 +58,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.develop.conf
+      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -116,7 +116,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.main.conf
+      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
