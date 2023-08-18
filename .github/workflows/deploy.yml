@@ -43,10 +43,6 @@ jobs:
       with:
         path: ./terraform
 
-    - name: Display structure of downloaded files
-      run: ls -R
-      working-directory: ./terraform
-
     # Configure AWS Creds DEV
     - name: Configure AWS Credentials Dev
       uses: aws-actions/configure-aws-credentials@v2
@@ -62,7 +58,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
+      run: terraform init -backend-config=backend.develop.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -79,7 +75,7 @@ jobs:
       # On push to "main", build or change infrastructure according to Terraform configuration files
     - name: Terraform Apply
       id: apply
-      run: terraform apply --auto-approve -input=false
+      run: terraform apply -var-file="develop.tfvars" --auto-approve -input=false
 
 
   terraform-deploy-prod:
@@ -98,16 +94,12 @@ jobs:
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Download all workflow run artifacts
       uses: actions/download-artifact@v3
       with:
         path: ./terraform
-
-    - name: Display structure of downloaded files
-      run: ls -R
-      working-directory: ./terraform
 
     # Configure AWS Creds Prod
     - name: Configure AWS Credentials Prod
@@ -124,7 +116,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
+      run: terraform init -backend-config=backend.main.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -141,4 +133,4 @@ jobs:
       # On push to "main", build or change infrastructure according to Terraform configuration files
     - name: Terraform Apply
       id: apply
-      run: terraform apply --auto-approve -input=false
+      run: terraform apply -var-file="main.tfvars" --auto-approve -input=false
