@@ -105,10 +105,10 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
             "Sid": "AllowParameterStore",
             "Effect": "Allow",
             "Action": ["ssm:GetParameter"],
-            "Resource": ["arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_api_key_${var.environment}",
-            "arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_secret_key_${var.environment}",
-            "arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
-            "arn:aws:ssm:${local.region}:${local.account_id}}:parameter/apple_update_notification_access_secret_token_${var.environment}"]
+            "Resource": ["arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key_${var.environment}",
+            "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key_${var.environment}",
+            "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
+            "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token_${var.environment}"]
         }
     ]
 }
