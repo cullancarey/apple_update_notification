@@ -134,7 +134,7 @@ def lambda_handler(event, context):
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
     dynamo_releases = get_item(table=table)
     if not dynamo_releases:
-        releases = {
+        dynamo_releases = {
             "timestamp": today,
             "macOS": "16",
             "tvOS": "11",
