@@ -133,19 +133,20 @@ def lambda_handler(event, context):
     dynamodb = create_dynamodb_client()
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
     dynamo_releases = get_item(table=table)
-    # releases = {
-    #     "timestamp": today,
-    #     "macOS": "16",
-    #     "tvOS": "11",
-    #     "watchOS": "9.6",
-    #     "iOS": "16.3.2",
-    #     "release_statements": {
-    #         "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
-    #         "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
-    #         "tvOS": "tvOS release available! \nThe latest version of tvOS is 16.1.  \n2022-11-08 15:59:42.526836 \n#tvOS #apple",
-    #         "watchOS": "watchOS release available! \nThe latest version of watchOS is 9.1.  \n2022-11-08 15:59:42.526838 \n#watchOS #apple test",
-    #     },
-    # }
+    if not dynamo_releases:
+        releases = {
+            "timestamp": today,
+            "macOS": "16",
+            "tvOS": "11",
+            "watchOS": "9.6",
+            "iOS": "16.3.2",
+            "release_statements": {
+                "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
+                "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
+                "tvOS": "tvOS release available! \nThe latest version of tvOS is 16.1.  \n2022-11-08 15:59:42.526836 \n#tvOS #apple",
+                "watchOS": "watchOS release available! \nThe latest version of watchOS is 9.1.  \n2022-11-08 15:59:42.526838 \n#watchOS #apple test",
+            },
+        }
 
     # Check if release is up to date
     logging.info(f"Website list: {releases}")

@@ -37,9 +37,9 @@ def get_item(table):
             return sorted_items[0]
         else:
             logging.error(
-                f"Unable to find latest item from table: {table}. Exiting program..."
+                f"Unable to find latest item from table: {table}."
             )
-            exit()
+            return False
 
 
 def authenticate_twitter_client():
