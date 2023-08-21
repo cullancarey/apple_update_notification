@@ -44,80 +44,82 @@ resource "aws_lambda_function" "apple_web_scrape_lambda" {
   timeout = 90
 }
 
+data "aws_iam_policy_document" "iam_for_apple_web_scrape_lambda_policy_document" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
 resource "aws_iam_role" "iam_for_apple_web_scrape_lambda" {
-  name        = "${local.web_scrape_lambda_name}-role"
+  name        = "${local.web_scrape_lambda_name}_role"
   path        = "/service-role/"
   description = "IAM role for ${local.web_scrape_lambda_name} lambda."
 
-  assume_role_policy = <<POLICY
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
+  assume_role_policy = aws_iam_policy_document.iam_for_apple_web_scrape_lambda_policy_document.json
 }
 
-POLICY
+data "aws_iam_policy_document" "apple_web_scrape_lambda_iam_policy_document" {
+  statement {
+    sid = "AllowCloudwatch"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:CreateLogGroup",
+    ]
+    resources = [
+      "arn:aws:logs:us-east-2:${local.account_id}:log-group:/aws/lambda/${local.web_scrape_lambda_name}:*",
+      "arn:aws:logs:us-east-2:${local.account_id}:*",
+    ]
+    effect = "Allow"
+  }
+
+  statement {
+    sid = "AllowDynamoDB"
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:UpdateItem",
+    ]
+    resources = [aws_dynamodb_table.apple_os_updates_table.arn]
+    effect    = "Allow"
+  }
+
+  statement {
+    sid = "AllowS3"
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket",
+    ]
+    resources = ["${aws_s3_bucket.apple_update_notification_bucket.arn}/*"]
+    effect    = "Allow"
+  }
+
+  statement {
+    sid = "AllowParameterStore"
+    actions = [
+      "ssm:GetParameter",
+    ]
+    resources = [
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key_${var.environment}",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key_${var.environment}",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token_${var.environment}"
+    ]
+    effect = "Allow"
+  }
 }
 
 
 resource "aws_iam_policy" "apple_web_scrape_lambda_iam_policy" {
-  name        = "${local.web_scrape_lambda_name}-role-policy"
+  name        = "${local.web_scrape_lambda_name}_role_policy"
   path        = "/service-role/"
   description = "IAM policy for ${aws_iam_role.iam_for_apple_web_scrape_lambda.name}"
-  policy      = <<POLICY
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AllowCloudwatch",
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-                "logs:CreateLogGroup"
-            ],
-            "Resource": ["arn:aws:logs:us-east-2:${local.account_id}:log-group:/aws/lambda/${local.web_scrape_lambda_name}:*",
-                            "arn:aws:logs:us-east-2:${local.account_id}:*"]
-        },{
-            "Sid": "AllowDynamoDB",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:PutItem",
-                "dynamodb:GetItem",
-                "dynamodb:UpdateItem"
-            ],
-            "Resource": "arn:aws:dynamodb:us-east-2:${local.account_id}:table/apple_os_releases_${var.environment}"
-        },
-        {
-            "Sid": "AllowS3",
-            "Effect": "Allow",
-            "Action": ["s3:GetObject", "s3:ListBucket"],
-            "Resource": "arn:aws:s3:::${aws_s3_bucket.apple_update_notification_bucket.id}/*"
-        },
-        {
-            "Sid": "AllowParameterStore",
-            "Effect": "Allow",
-            "Action": ["ssm:GetParameter"],
-            "Resource": ["arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key_${var.environment}",
-            "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key_${var.environment}",
-            "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
-            "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token_${var.environment}"]
-        }
-    ]
-}
-
-
-
-
-
-POLICY
+  policy      = aws_iam_policy_document.apple_web_scrape_lambda_iam_policy_document.json
 }
 
 resource "aws_iam_role_policy_attachment" "apple_web_scrape_lambda_attach" {
