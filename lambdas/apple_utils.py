@@ -2,7 +2,10 @@
 import boto3
 import tweepy
 import os
+import logging
 from botocore.exceptions import ClientError
+
+logging.basicConfig(level=logging.INFO)
 
 
 def get_param(param):
@@ -12,16 +15,29 @@ def get_param(param):
     return response["Parameter"]["Value"]
 
 
-def get_item(table, date):
+def get_item(table):
     """Retrieves latest releases item from DynamoDB table"""
     try:
-        response = table.get_item(Key={"RowId": date})
+        response = table.scan(
+            Limit=1,
+            ScanFilter={
+                "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": [0]}
+            },
+            ScanIndexForward=False,
+        )
     except ClientError as err:
-        print(f"Exception ocurred retrieving item from DynamoDB: {err}")
+        logging.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
     else:
-        print(f"Successfully retrieved item from DynamoDB: {response['Item']}")
-
-    return response["Item"]
+        if response["Items"]:
+            logging.info(
+                f"Successfully retrieved item from DynamoDB: {response['Items'][0]}"
+            )
+            return response["Items"][0]
+        else:
+            logging.error(
+                f"Unable to find latest item from table: {table}. Exiting program..."
+            )
+            exit()
 
 
 def authenticate_twitter_client():
