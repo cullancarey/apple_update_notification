@@ -2,7 +2,7 @@ resource "aws_s3_object" "lambda_layer_deployment_package_file" {
   bucket      = aws_s3_bucket.apple_update_notification_bucket.id
   key         = "apple_utils.zip"
   source      = "lambda_build/apple_utils.zip"
-  source_hash = filemd5(aws_s3_object.apple_web_scrape_lambda_file.source)
+  source_hash = filemd5(aws_s3_object.lambda_layer_deployment_package_file.source)
 }
 
 
