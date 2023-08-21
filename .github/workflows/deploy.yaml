@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Build Lambda Deployment Package
+    - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
     - name: Upload Lambda Deployment Package
