@@ -108,7 +108,7 @@ def get_latest_releases(today):
 def lambda_handler(event, context):
     """Main function for lambda function"""
 
-    today = time.time()
+    today = int(time.time())
 
     releases = get_latest_releases(today=today)
 

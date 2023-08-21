@@ -5,6 +5,6 @@ resource "aws_dynamodb_table" "apple_os_updates_table" {
 
   attribute {
     name = "timestamp"
-    type = "S"
+    type = "N"
   }
 }
