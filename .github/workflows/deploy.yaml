@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-lambda-package:
+    name: Build Lambda Deployment Package
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3

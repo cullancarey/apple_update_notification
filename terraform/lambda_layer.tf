@@ -8,7 +8,7 @@ resource "aws_s3_object" "lambda_layer_deployment_package_file" {
 
 resource "aws_lambda_layer_version" "lambda_utils_layer" {
   s3_bucket  = aws_s3_bucket.apple_update_notification_bucket.id
-  s3_key     = aws_s3_object.lambda_layer_deployment_package_file.id
+  s3_key     = filebase64sha256(aws_s3_object.lambda_layer_deployment_package_file.id)
   layer_name = "apple_utils"
 
   compatible_runtimes = ["python3.9"]
