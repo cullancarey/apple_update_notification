@@ -1,5 +1,5 @@
 #############################################
-#### APPLE UPDATE NOTIFICATION LAMBDA #######
+########## APPLE WEB SCRAPE LAMBDA #########
 #############################################
 
 locals {
@@ -12,18 +12,18 @@ data "archive_file" "apple_web_scrape_lambda" {
   output_path = "${local.web_scrape_lambda_name}.zip"
 }
 
-resource "aws_s3_object" "apple_update_notification_lambda_file" {
+resource "aws_s3_object" "apple_web_scrape_lambda_file" {
   bucket      = aws_s3_bucket.apple_update_notification_bucket.id
   key         = "${local.web_scrape_lambda_name}.zip"
   source      = "${local.web_scrape_lambda_name}.zip"
   source_hash = data.archive_file.apple_web_scrape_lambda.output_base64sha512
 }
 
-resource "aws_lambda_function" "apple_update_notification_lambda" {
+resource "aws_lambda_function" "apple_web_scrape_lambda" {
   s3_bucket     = aws_s3_bucket.apple_update_notification_bucket.id
-  s3_key        = aws_s3_object.apple_update_notification_lambda_file.id
+  s3_key        = aws_s3_object.apple_web_scrape_lambda_file.id
   function_name = local.web_scrape_lambda_name
-  role          = aws_iam_role.iam_for_apple_update_notification_lambda.arn
+  role          = aws_iam_role.iam_for_apple_web_scrape_lambda.arn
   handler       = "${local.web_scrape_lambda_name}.lambda_handler"
   description   = "Lambda function for sending notifications about the newest apple releases"
 
@@ -44,7 +44,7 @@ resource "aws_lambda_function" "apple_update_notification_lambda" {
   timeout = 90
 }
 
-resource "aws_iam_role" "iam_for_apple_update_notification_lambda" {
+resource "aws_iam_role" "iam_for_apple_web_scrape_lambda" {
   name        = "${local.web_scrape_lambda_name}-role"
   path        = "/service-role/"
   description = "IAM role for ${local.web_scrape_lambda_name} lambda."
@@ -67,10 +67,10 @@ POLICY
 }
 
 
-resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
+resource "aws_iam_policy" "apple_web_scrape_lambda_iam_policy" {
   name        = "${local.web_scrape_lambda_name}-role-policy"
   path        = "/service-role/"
-  description = "IAM policy for ${aws_iam_role.iam_for_apple_update_notification_lambda.name}"
+  description = "IAM policy for ${aws_iam_role.iam_for_apple_web_scrape_lambda.name}"
   policy      = <<POLICY
 {
     "Version": "2012-10-17",
@@ -120,7 +120,7 @@ resource "aws_iam_policy" "apple_update_notification_lambda_iam_policy" {
 POLICY
 }
 
-resource "aws_iam_role_policy_attachment" "apple_update_notification_lambda_attach" {
-  role       = aws_iam_role.iam_for_apple_update_notification_lambda.name
-  policy_arn = aws_iam_policy.apple_update_notification_lambda_iam_policy.arn
+resource "aws_iam_role_policy_attachment" "apple_web_scrape_lambda_attach" {
+  role       = aws_iam_role.iam_for_apple_web_scrape_lambda.name
+  policy_arn = aws_iam_policy.apple_web_scrape_lambda_iam_policy.arn
 }
