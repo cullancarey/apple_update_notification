@@ -60,7 +60,7 @@ resource "aws_iam_role" "iam_for_apple_web_scrape_lambda" {
   path        = "/service-role/"
   description = "IAM role for ${local.web_scrape_lambda_name} lambda."
 
-  assume_role_policy = aws_iam_policy_document.iam_for_apple_web_scrape_lambda_policy_document.json
+  assume_role_policy = data.aws_iam_policy_document.iam_for_apple_web_scrape_lambda_policy_document.json
 }
 
 data "aws_iam_policy_document" "apple_web_scrape_lambda_iam_policy_document" {
@@ -119,7 +119,7 @@ resource "aws_iam_policy" "apple_web_scrape_lambda_iam_policy" {
   name        = "${local.web_scrape_lambda_name}_role_policy"
   path        = "/service-role/"
   description = "IAM policy for ${aws_iam_role.iam_for_apple_web_scrape_lambda.name}"
-  policy      = aws_iam_policy_document.apple_web_scrape_lambda_iam_policy_document.json
+  policy      = data.aws_iam_policy_document.apple_web_scrape_lambda_iam_policy_document.json
 }
 
 resource "aws_iam_role_policy_attachment" "apple_web_scrape_lambda_attach" {
