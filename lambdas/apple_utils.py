@@ -22,17 +22,19 @@ def get_item(table):
             Limit=1,
             ScanFilter={
                 "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": [0]}
-            },
-            ScanIndexForward=False,
+            }
         )
     except ClientError as err:
         logging.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
     else:
         if response["Items"]:
+            items = response['Items']
             logging.info(
-                f"Successfully retrieved item from DynamoDB: {response['Items'][0]}"
+                f"Successfully retrieved item from DynamoDB: {items}"
             )
-            return response["Items"][0]
+            # Sort items by timestamp in descending order
+            sorted_items = sorted(items, key=lambda x: x['timestamp'], reverse=True)
+            return sorted_items[0]
         else:
             logging.error(
                 f"Unable to find latest item from table: {table}. Exiting program..."
