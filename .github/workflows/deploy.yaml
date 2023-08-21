@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Install dependencies
+    - name: Build Lambda Deployment Package
       run: ./create_lambda_package.sh
       shell: bash
-    - name: Upload Lambda Build Package
+    - name: Upload Lambda Deployment Package
       uses: actions/upload-artifact@v3
       with:
         name: lambda_build
