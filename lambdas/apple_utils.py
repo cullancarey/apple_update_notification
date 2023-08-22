@@ -23,7 +23,7 @@ def get_item(table, today):
     logger.info("Retrieving item from Dynamo.")
     try:
         response = table.scan(
-            Limit=5,
+            Limit=10,
             ScanFilter={
                 "timestamp": {"ComparisonOperator": "LT", "AttributeValueList": [today]}
             }
@@ -37,8 +37,18 @@ def get_item(table, today):
                 f"Successfully retrieved item from DynamoDB: {items}"
             )
             # Sort items by timestamp in descending order
-            sorted_items = sorted(items, key=lambda x: x['timestamp'], reverse=True)
-            return sorted_items[0]
+            newest_item = sorted(items, key=lambda x: x['timestamp'], reverse=True)
+            oldest_item = min(items, key=lambda x: x['timestamp'])
+            try:
+            # Delete the oldest item
+                delete_response = table.delete_item(
+                    Key={
+                        'timestamp': oldest_item['timestamp']  # replace 'id' with your primary key
+                    }
+                )
+            except ClientError as err:
+                logger.error(f"Error deleting oldest item {oldest_item}.")
+            return newest_item[0]
         else:
             logger.error(
                 f"Unable to find latest item from table: {table}."
