@@ -36,7 +36,7 @@ def get_item(table):
             sorted_items = sorted(items, key=lambda x: x['timestamp'], reverse=True)
             return sorted_items[0]
         else:
-            logging.error(
+            logging.info(
                 f"Unable to find latest item from table: {table}."
             )
             return False
