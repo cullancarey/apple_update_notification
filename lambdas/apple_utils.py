@@ -23,7 +23,7 @@ def get_item(table):
     logger.info("Retrieving item from Dynamo.")
     try:
         response = table.scan(
-            Limit=1,
+            Limit=5,
             ScanFilter={
                 "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": [0]}
             }
