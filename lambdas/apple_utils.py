@@ -25,7 +25,7 @@ def get_item(table, today):
         response = table.scan(
             Limit=5,
             ScanFilter={
-                "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": today}
+                "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": [today]}
             }
         )
     except ClientError as err:
