@@ -45,13 +45,14 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
             else:
                 logger.info(f"No new updates for {device}")
                 update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
+        # Delete the oldest item
+        logger.info(f"Deleting oldest item {oldest_item}.")
         try:
-            # Delete the oldest item
-                db_table_conn.delete_item(
-                    Key={
-                        'timestamp': oldest_item['timestamp']  # replace 'id' with your primary key
-                    }
-                )
+            db_table_conn.delete_item(
+                Key={
+                    'timestamp': oldest_item['timestamp']
+                }
+            )
         except ClientError as err:
             logger.error(f"Error deleting oldest item {oldest_item} with error {err}.")
         logger.info(f"Finished updating releases.")
