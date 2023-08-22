@@ -37,8 +37,10 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
         if device in difference.keys():
             logger.info(f"Update available for {device}. Updating Dynamo.")
             update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
+            twitter_conn.update_status(release_dictionary[device])
         else:
             logger.info(f"No new updates for {device}")
+            update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
     logger.info(f"Finished updating releases.")
 
 
@@ -140,10 +142,10 @@ def lambda_handler(event, context):
     if not dynamo_releases:
         dynamo_releases = {
             "timestamp": today,
-            "macOS": "16",
-            "tvOS": "11",
-            "watchOS": "9.6",
-            "iOS": "16.3.2",
+            "macOS": "13.5.1",
+            "tvOS": "16.6",
+            "watchOS": "9.6.1",
+            "iOS": "16.6",
             "release_statements": {
                 "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
                 "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
