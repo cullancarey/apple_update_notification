@@ -39,17 +39,7 @@ def get_item(table, today):
             # Sort items by timestamp in descending order
             newest_item = sorted(items, key=lambda x: x['timestamp'], reverse=True)
             oldest_item = min(items, key=lambda x: x['timestamp'])
-            logger.info(oldest_item)
-            try:
-            # Delete the oldest item
-                table.delete_item(
-                    Key={
-                        'timestamp': oldest_item['timestamp']  # replace 'id' with your primary key
-                    }
-                )
-            except ClientError as err:
-                logger.error(f"Error deleting oldest item {oldest_item} with error {err}.")
-            return newest_item[0]
+            return newest_item[0], oldest_item
         else:
             logger.error(
                 f"Unable to find latest item from table: {table}."

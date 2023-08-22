@@ -20,7 +20,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_conn):
+def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_conn, oldest_item):
     """Compares the releases from the website to what is in DynamoDB
     and updates DynamoDB of the new records if they exist. Also
     tweets about new updates if they exist"""
@@ -45,6 +45,15 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
             else:
                 logger.info(f"No new updates for {device}")
                 update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
+        try:
+            # Delete the oldest item
+                db_table_conn.delete_item(
+                    Key={
+                        'timestamp': oldest_item['timestamp']  # replace 'id' with your primary key
+                    }
+                )
+        except ClientError as err:
+            logger.error(f"Error deleting oldest item {oldest_item} with error {err}.")
         logger.info(f"Finished updating releases.")
     else:
         logger.info(f"No updates available at {today}.")
@@ -144,7 +153,7 @@ def lambda_handler(event, context):
     # Get latest releases in dynamo
     dynamodb = create_dynamodb_client()
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
-    dynamo_releases = get_item(table=table, today=today)
+    dynamo_releases, oldest_item = get_item(table=table, today=today)
     if not dynamo_releases:
         dynamo_releases = {
             "timestamp": today,
@@ -171,4 +180,5 @@ def lambda_handler(event, context):
         db_list=dynamo_releases,
         db_table_conn=table,
         twitter_conn=twitter_client,
+        oldest_item=oldest_item
     )
