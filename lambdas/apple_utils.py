@@ -12,6 +12,7 @@ logger.setLevel(logging.INFO)
 
 def get_param(param):
     """Retrieves parameter secrets from Parameter Store"""
+    logger.info(f"Retrieving parameter {param}.")
     client = boto3.client("ssm")
     response = client.get_parameter(Name=param, WithDecryption=True)
     return response["Parameter"]["Value"]
@@ -19,6 +20,7 @@ def get_param(param):
 
 def get_item(table):
     """Retrieves latest releases item from DynamoDB table"""
+    logger.info("Retrieving item from Dynamo.")
     try:
         response = table.scan(
             Limit=1,
@@ -46,6 +48,7 @@ def get_item(table):
 
 def authenticate_twitter_client():
     """Gets authenticated session from Twitter"""
+    logger.info("Creating twitter client.")
     client_id = get_param(
         f"apple_update_notification_api_key_{os.environ['environment']}"
     )
@@ -70,5 +73,6 @@ def authenticate_twitter_client():
 
 def create_dynamodb_client():
     """Creates dynamodb client"""
+    logger.info("Creating Dynamo client.")
     session = boto3.resource("dynamodb")
     return session

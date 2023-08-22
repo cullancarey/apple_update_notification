@@ -35,17 +35,18 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
 
     for device in device_list:
         if device in difference.keys():
-            # update_item(db_table_conn, today, device, release_dictionary)
-            logger.info(f"{db_table_conn}, {today}, {device}, {release_dictionary}")
+            logger.info(f"Update available for {device}. Updating Dynamo.")
+            update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
         else:
             logger.info(f"No new updates for {device}")
+    logger.info(f"Finished updating releases.")
 
 
-def update_item(table, rowid, device, release_dict):
+def update_item(table, timestamp, device, release_dict):
     """Updates DynamoDB with new release value"""
     try:
         table.update_item(
-            Key={"RowId": rowid},
+            Key={"timestamp": timestamp},
             UpdateExpression=f"SET {device}=:{device},"
             f"ReleaseStatements=:ReleaseStatements",
             ExpressionAttributeValues={
@@ -62,6 +63,7 @@ def update_item(table, rowid, device, release_dict):
 
 def get_latest_releases(today):
     """Get latest releases from Apple website"""
+    logger.info(f"Getting latest apple releases.")
     http = urllib3.PoolManager()
     page = http.request("GET", "https://support.apple.com/en-us/HT201222")
 
