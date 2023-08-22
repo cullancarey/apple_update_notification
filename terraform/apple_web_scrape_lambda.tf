@@ -82,6 +82,7 @@ data "aws_iam_policy_document" "apple_web_scrape_lambda_iam_policy_document" {
     sid = "AllowDynamoDB"
     actions = [
       "dynamodb:Scan",
+      "dynamodb:DeleteItem",
       "dynamodb:UpdateItem",
     ]
     resources = [aws_dynamodb_table.apple_os_updates_table.arn]

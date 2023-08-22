@@ -41,7 +41,7 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
             if device in difference.keys():
                 logger.info(f"Update available for {device}. Updating Dynamo.")
                 update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
-                twitter_conn.create_tweet(release_dictionary[device])
+                # twitter_conn.create_tweet(release_dictionary[device])
             else:
                 logger.info(f"No new updates for {device}")
                 update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
