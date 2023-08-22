@@ -63,11 +63,11 @@ def authenticate_twitter_client():
     )
 
     # Authenticate to Twitter
-    auth = tweepy.OAuthHandler(f"{client_id}", f"{client_secret}")
-    auth.set_access_token(f"{access_token}", f"{access_token_secret}")
+    # auth = tweepy.OAuthHandler(f"{client_id}", f"{client_secret}")
+    # auth.set_access_token(f"{access_token}", f"{access_token_secret}")
 
     # Create API object
-    twitter_client = tweepy.API(auth)
+    twitter_client = tweepy.Client(consumer_key=client_id, consumer_secret=client_secret, access_token=access_token, access_token_secret=access_token_secret)
     return twitter_client
 
 
