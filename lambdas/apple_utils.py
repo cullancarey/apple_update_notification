@@ -27,18 +27,18 @@ def get_item(table):
             }
         )
     except ClientError as err:
-        logging.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
+        logger.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
     else:
         if response["Items"]:
             items = response['Items']
-            logging.info(
+            logger.info(
                 f"Successfully retrieved item from DynamoDB: {items}"
             )
             # Sort items by timestamp in descending order
             sorted_items = sorted(items, key=lambda x: x['timestamp'], reverse=True)
             return sorted_items[0]
         else:
-            logging.info(
+            logger.error(
                 f"Unable to find latest item from table: {table}."
             )
             return False
