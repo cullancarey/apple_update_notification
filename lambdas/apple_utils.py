@@ -5,6 +5,8 @@ import os
 import logging
 from botocore.exceptions import ClientError
 
+# Set up logging
+logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
 
 

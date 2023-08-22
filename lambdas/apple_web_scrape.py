@@ -15,6 +15,8 @@ from apple_utils import (
     create_dynamodb_client,
 )
 
+# Set up logging
+logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
 
 
