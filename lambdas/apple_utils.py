@@ -18,14 +18,14 @@ def get_param(param):
     return response["Parameter"]["Value"]
 
 
-def get_item(table):
+def get_item(table, today):
     """Retrieves latest releases item from DynamoDB table"""
     logger.info("Retrieving item from Dynamo.")
     try:
         response = table.scan(
             Limit=5,
             ScanFilter={
-                "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": [0]}
+                "timestamp": {"ComparisonOperator": "GT", "AttributeValueList": today}
             }
         )
     except ClientError as err:

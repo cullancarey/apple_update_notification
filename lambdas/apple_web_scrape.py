@@ -24,24 +24,30 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
     """Compares the releases from the website to what is in DynamoDB
     and updates DynamoDB of the new records if they exist. Also
     tweets about new updates if they exist"""
-    logger.info(twitter_conn)
+    # logger.info(twitter_conn)
     difference = {
         k: db_list[k]
         for k in db_list
         if k not in release_dictionary or release_dictionary[k] != db_list[k]
     }
+    difference.pop("timestamp")
+    difference.pop("ReleaseStatements")
+    logger.info(difference)
 
     device_list = ["iOS", "macOS", "watchOS", "tvOS"]
 
-    for device in device_list:
-        if device in difference.keys():
-            logger.info(f"Update available for {device}. Updating Dynamo.")
-            update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
-            twitter_conn.update_status(release_dictionary[device])
-        else:
-            logger.info(f"No new updates for {device}")
-            update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
-    logger.info(f"Finished updating releases.")
+    if difference:
+        for device in device_list:
+            if device in difference.keys():
+                logger.info(f"Update available for {device}. Updating Dynamo.")
+                update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
+                twitter_conn.create_tweet(release_dictionary[device])
+            else:
+                logger.info(f"No new updates for {device}")
+                update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
+        logger.info(f"Finished updating releases.")
+    else:
+        logger.info(f"No updates available at {today}.")
 
 
 def update_item(table, timestamp, device, release_dict):
@@ -138,7 +144,7 @@ def lambda_handler(event, context):
     # Get latest releases in dynamo
     dynamodb = create_dynamodb_client()
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
-    dynamo_releases = get_item(table=table)
+    dynamo_releases = get_item(table=table, today=today)
     if not dynamo_releases:
         dynamo_releases = {
             "timestamp": today,
