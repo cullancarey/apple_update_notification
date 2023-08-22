@@ -36,7 +36,7 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
     for device in device_list:
         if device in difference.keys():
             # update_item(db_table_conn, today, device, release_dictionary)
-            logger.info(db_table_conn, today, device, release_dictionary)
+            logger.info(f"{db_table_conn}, {today}, {device}, {release_dictionary}")
         else:
             logger.info(f"No new updates for {device}")
 
