@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 
 # Set up logging
 logger = logging.getLogger()
-logging.basicConfig(level=logging.INFO)
+logger.setLevel(logging.INFO)
 
 
 def get_param(param):

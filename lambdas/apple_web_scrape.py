@@ -17,7 +17,7 @@ from apple_utils import (
 
 # Set up logging
 logger = logging.getLogger()
-logging.basicConfig(level=logging.INFO)
+logger.setLevel(logging.INFO)
 
 
 def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_conn):
