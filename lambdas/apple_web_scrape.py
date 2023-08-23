@@ -10,7 +10,6 @@ import logging
 import time
 from botocore.exceptions import ClientError
 from apple_utils import (
-    authenticate_twitter_client,
     get_item,
     create_dynamodb_client,
 )
@@ -20,11 +19,10 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_conn, oldest_item):
+def compare_lists(today, release_dictionary, db_list, db_table_conn, oldest_item):
     """Compares the releases from the website to what is in DynamoDB
     and updates DynamoDB of the new records if they exist. Also
     tweets about new updates if they exist"""
-    # logger.info(twitter_conn)
     difference = {
         k: db_list[k]
         for k in db_list
@@ -41,7 +39,6 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, twitter_con
             if device in difference.keys():
                 logger.info(f"Update available for {device}. Updating Dynamo.")
                 update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
-                # twitter_conn.create_tweet(release_dictionary[device])
             else:
                 logger.info(f"No new updates for {device}")
                 update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
@@ -134,41 +131,23 @@ def lambda_handler(event, context):
 
     releases = get_latest_releases(today=today)
 
-    twitter_client = authenticate_twitter_client()
-
-    # Look for date in last tweet to ensure we don't tweet more than once for an update
-    # username = os.environ.get("twitter_username")
-    # tweets_list = twitter_client.user_timeline(screen_name=username, count=1)
-    # tweet = tweets_list[0]
-    # tweet_date_from_twitter = str(tweet.created_at)
-    # tweet_date = re.search(
-    #     "([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))", tweet_date_from_twitter
-    # )
-    # tweet_date = tweet_date.group(0)
-    # # TEST TWEET DATE
-    # tweet_date = "2022-12-20"
-    # logger.info(f"tweet date: {tweet_date}")
-    # # TEST TODAY DATE
-    # today = "2022-12-21"
-
     # Get latest releases in dynamo
     dynamodb = create_dynamodb_client()
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
     dynamo_releases, oldest_item = get_item(table=table, today=today)
-    if not dynamo_releases:
-        dynamo_releases = {
-            "timestamp": today,
-            "macOS": "13.5.1",
-            "tvOS": "16.6",
-            "watchOS": "9.6.1",
-            "iOS": "16.6",
-            "release_statements": {
-                "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
-                "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
-                "tvOS": "tvOS release available! \nThe latest version of tvOS is 16.1.  \n2022-11-08 15:59:42.526836 \n#tvOS #apple",
-                "watchOS": "watchOS release available! \nThe latest version of watchOS is 9.1.  \n2022-11-08 15:59:42.526838 \n#watchOS #apple test",
-            },
-        }
+    # releases = {
+    #         "timestamp": today,
+    #         "macOS": "13.5.1",
+    #         "tvOS": "16.6",
+    #         "watchOS": "9.6.1",
+    #         "iOS": "16.6",
+    #         "release_statements": {
+    #             "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
+    #             "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
+    #             "tvOS": "tvOS release available! \nThe latest version of tvOS is 16.1.  \n2022-11-08 15:59:42.526836 \n#tvOS #apple",
+    #             "watchOS": "watchOS release available! \nThe latest version of watchOS is 9.1.  \n2022-11-08 15:59:42.526838 \n#watchOS #apple test",
+    #         },
+    #     }
 
     # Check if release is up to date
     logger.info(f"Website list: {releases}")
@@ -180,6 +159,5 @@ def lambda_handler(event, context):
         release_dictionary=releases,
         db_list=dynamo_releases,
         db_table_conn=table,
-        twitter_conn=twitter_client,
         oldest_item=oldest_item
     )

@@ -34,7 +34,7 @@ def get_item(table, today):
         if response["Items"]:
             items = response['Items']
             logger.info(
-                f"Successfully retrieved item from DynamoDB: {items}"
+                f"Successfully retrieved item from DynamoDB."
             )
             # Sort items by timestamp in descending order
             newest_item = sorted(items, key=lambda x: x['timestamp'], reverse=True)
