@@ -21,7 +21,18 @@ def get_param(param):
 def get_item(table, device_list):
     """Retrieves latest releases item from DynamoDB table"""
     logger.info("Retrieving items from Dynamo.")
-    releases = {}
+    releases = {
+    'iOS': None,
+    'macOS': None,
+    'tvOS': None,
+    'watchOS': None,
+    'release_statements': {
+        'iOS': None,
+        'macOS': None,
+        'tvOS': None,
+        'watchOS': None
+            }
+            }                   
     for device in device_list:
         try:
             response = table.get_item(Key={"device": device})
