@@ -99,10 +99,10 @@ data "aws_iam_policy_document" "apple_send_update_lambda_iam_policy_document" {
       "ssm:GetParameter",
     ]
     resources = [
-      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key_${var.environment}",
-      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key_${var.environment}",
-      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
-      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token_${var.environment}"
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token"
     ]
     effect = "Allow"
   }
