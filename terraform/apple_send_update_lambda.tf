@@ -82,6 +82,18 @@ data "aws_iam_policy_document" "apple_send_update_lambda_iam_policy_document" {
   }
 
   statement {
+    sid = "AllowDynamoDB"
+    actions = [
+      "dynamodb:GetRecords",
+      "dynamodb:GetShardIterator",
+      "dynamodb:DescribeStream",
+      "dynamodb:ListStreams",
+    ]
+    resources = [aws_dynamodb_table.apple_os_updates_table.arn, aws_dynamodb_table.apple_os_updates_table.stream_arn]
+    effect    = "Allow"
+  }
+
+  statement {
     sid = "AllowParameterStore"
     actions = [
       "ssm:GetParameter",
