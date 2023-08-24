@@ -21,9 +21,10 @@ def get_param(param):
 def get_item(table, device_list):
     """Retrieves latest releases item from DynamoDB table"""
     logger.info("Retrieving items from Dynamo.")
+    releases = {}
     for device in device_list:
         try:
-            response = table.get_item(Key=device)
+            response = table.get_item(Key={"device": device})
         except ClientError as err:
             logger.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
         else:
