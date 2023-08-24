@@ -2,13 +2,8 @@
 import sys
 
 sys.path.append("/opt")
-import re
-import os
 import logging
-import time
-from botocore.exceptions import ClientError
 from apple_utils import (
-    get_param,
     authenticate_twitter_client
 )
 
@@ -20,16 +15,23 @@ logger.setLevel(logging.INFO)
 def lambda_handler(event, context):
     """Main function for lambda function"""
 
+    twitter_client = authenticate_twitter_client()
+
     for record in event['Records']:
-
-        device = record['dynamodb']['Keys']['device']['S']
+        # device = record['dynamodb']['Keys']['device']['S']
         release_statement = record['dynamodb']['NewImage']['ReleaseStatement']['S']
-        release_version = record['dynamodb']['NewImage']['ReleaseVersion']['S']
-        time_created = record['dynamodb']['ApproximateCreationDateTime']
-        event_name = record['eventName']
-        event_version = record['eventVersion']
+        # release_version = record['dynamodb']['NewImage']['ReleaseVersion']['S']
+        # time_created = record['dynamodb']['ApproximateCreationDateTime']
+        # event_name = record['eventName']
 
-        stream_details = {"device": device, "release_version": release_version, "time_created": time_created, "event_name": event_name, "event_version": event_version}
+        post_tweet(twitter_client=twitter_client, tweet_content=release_statement)
 
-        logger.info(stream_details)
+        
 
+def post_tweet(twitter_client, tweet_content):
+    try:
+        # Post the tweet
+        response = twitter_client.create_tweet(status=tweet_content)
+        logger.info(f"Tweet posted successfully! Tweet ID: {response['id']}")
+    except Exception as e:
+        logger.error(f"An error occurred creating tweet: {e}")
