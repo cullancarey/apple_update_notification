@@ -58,16 +58,16 @@ def authenticate_twitter_client():
     """Gets authenticated session from Twitter"""
     logger.info("Creating twitter client.")
     client_id = get_param(
-        f"apple_update_notification_api_key_{os.environ['environment']}"
+        f"apple_update_notification_api_key"
     )
     access_token = get_param(
-        f"apple_update_notification_twitter_access_token_{os.environ['environment']}"
+        f"apple_update_notification_twitter_access_token"
     )
     access_token_secret = get_param(
-        f"apple_update_notification_access_secret_token_{os.environ['environment']}"
+        f"apple_update_notification_access_secret_token"
     )
     client_secret = get_param(
-        f"apple_update_notification_secret_key_{os.environ['environment']}"
+        f"apple_update_notification_secret_key"
     )
 
     # Authenticate to Twitter

@@ -35,7 +35,6 @@ resource "aws_lambda_function" "apple_web_scrape_lambda" {
     variables = {
       website             = var.root_domain_name
       environment         = var.environment
-      twitter_username    = var.twitter_username
       dynamodb_table_name = aws_dynamodb_table.apple_os_updates_table.id
     }
   }
