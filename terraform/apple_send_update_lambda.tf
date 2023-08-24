@@ -100,6 +100,7 @@ data "aws_iam_policy_document" "apple_send_update_lambda_iam_policy_document" {
     ]
     resources = [
       "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_bearer_token",
       "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key",
       "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token",
       "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token"
