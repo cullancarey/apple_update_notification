@@ -44,7 +44,7 @@ def get_item(table, device_list):
                 logger.info(
                     f"Successfully retrieved item from DynamoDB."
                 )
-                releases[device] = response["Item"].get('Release')
+                releases[device] = response["Item"].get('ReleaseVersion')
                 releases['release_statements'][device] = response["Item"].get('ReleaseStatement')
             else:
                 logger.error(

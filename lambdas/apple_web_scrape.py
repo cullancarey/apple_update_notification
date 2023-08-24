@@ -40,7 +40,6 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn):
                 update_item(table=db_table_conn, device=device, release_dict=release_dictionary)
             else:
                 logger.info(f"No new updates for {device}")
-                update_item(table=db_table_conn, device=device, release_dict=release_dictionary)
         logger.info(f"Finished updating releases.")
     else:
         logger.info(f"No updates available at {today}.")
@@ -51,10 +50,10 @@ def update_item(table, device, release_dict):
     try:
         table.update_item(
             Key={"device": device},
-            UpdateExpression=f"SET Release=:{release_dict[device]},"
+            UpdateExpression=f"SET ReleaseVersion=:ReleaseVersion,"
             f"ReleaseStatement=:ReleaseStatement",
             ExpressionAttributeValues={
-                f":Release": release_dict[device],
+                ":ReleaseVersion": release_dict[device],
                 ":ReleaseStatement": release_dict["release_statements"][device],
             },
             ReturnValues="UPDATED_NEW",
