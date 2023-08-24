@@ -3,7 +3,7 @@ resource "aws_dynamodb_table" "apple_os_updates_table" {
   billing_mode                = "PAY_PER_REQUEST"
   hash_key                    = "device"
   deletion_protection_enabled = false
-  stream_enabled              = false
+  stream_enabled              = true
   stream_view_type            = "NEW_IMAGE"
 
   attribute {
