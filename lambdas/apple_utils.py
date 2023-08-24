@@ -57,27 +57,27 @@ def get_item(table, device_list):
 def authenticate_twitter_client():
     """Gets authenticated session from Twitter"""
     logger.info("Creating twitter client.")
-    # client_id = get_param(
-    #     f"apple_update_notification_api_key"
-    # )
-    # access_token = get_param(
-    #     f"apple_update_notification_twitter_access_token"
-    # )
-    # access_token_secret = get_param(
-    #     f"apple_update_notification_access_secret_token"
-    # )
-    # client_secret = get_param(
-    #     f"apple_update_notification_secret_key"
-    # )
-    bearer_token = get_param("apple_update_notification_bearer_token")
+    client_id = get_param(
+        f"apple_update_notification_api_key"
+    )
+    access_token = get_param(
+        f"apple_update_notification_twitter_access_token"
+    )
+    access_token_secret = get_param(
+        f"apple_update_notification_access_secret_token"
+    )
+    client_secret = get_param(
+        f"apple_update_notification_secret_key"
+    )
+    # bearer_token = get_param("apple_update_notification_bearer_token")
 
     # Authenticate to Twitter
     # auth = tweepy.OAuthHandler(f"{client_id}", f"{client_secret}")
     # auth.set_access_token(f"{access_token}", f"{access_token_secret}")
 
     # Create API object
-    # twitter_client = tweepy.Client(consumer_key=client_id, consumer_secret=client_secret, access_token=access_token, access_token_secret=access_token_secret)
-    twitter_client = tweepy.Client(bearer_token=bearer_token)
+    twitter_client = tweepy.Client(consumer_key=client_id, consumer_secret=client_secret, access_token=access_token, access_token_secret=access_token_secret)
+    # twitter_client = tweepy.Client(bearer_token=bearer_token)
     return twitter_client
 
 
