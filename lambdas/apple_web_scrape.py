@@ -18,8 +18,10 @@ from apple_utils import (
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS"]
 
-def compare_lists(today, release_dictionary, db_list, db_table_conn, oldest_item):
+
+def compare_lists(today, release_dictionary, db_list, db_table_conn):
     """Compares the releases from the website to what is in DynamoDB
     and updates DynamoDB of the new records if they exist. Also
     tweets about new updates if they exist"""
@@ -38,35 +40,25 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn, oldest_item
         for device in device_list:
             if device in difference.keys():
                 logger.info(f"Update available for {device}. Updating Dynamo.")
-                update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
+                update_item(table=db_table_conn, device=device, release_dict=release_dictionary)
             else:
                 logger.info(f"No new updates for {device}")
-                update_item(table=db_table_conn, timestamp=today, device=device, release_dict=release_dictionary)
-        # Delete the oldest item
-        logger.info(f"Deleting oldest item {oldest_item}.")
-        try:
-            db_table_conn.delete_item(
-                Key={
-                    'timestamp': oldest_item['timestamp']
-                }
-            )
-        except ClientError as err:
-            logger.error(f"Error deleting oldest item {oldest_item} with error {err}.")
+                update_item(table=db_table_conn, device=device, release_dict=release_dictionary)
         logger.info(f"Finished updating releases.")
     else:
         logger.info(f"No updates available at {today}.")
 
 
-def update_item(table, timestamp, device, release_dict):
+def update_item(table, device, release_dict):
     """Updates DynamoDB with new release value"""
     try:
         table.update_item(
-            Key={"timestamp": timestamp},
-            UpdateExpression=f"SET {device}=:{device},"
-            f"ReleaseStatements=:ReleaseStatements",
+            Key={"device": device},
+            UpdateExpression=f"SET Release=:{release_dict[device]},"
+            f"ReleaseStatement=:ReleaseStatement",
             ExpressionAttributeValues={
-                f":{device}": release_dict[device],
-                ":ReleaseStatements": release_dict["release_statements"],
+                f":Release": release_dict[device],
+                ":ReleaseStatement": release_dict["release_statements"][device],
             },
             ReturnValues="UPDATED_NEW",
         )
@@ -76,7 +68,7 @@ def update_item(table, timestamp, device, release_dict):
         logger.info(f"Successfully uploaded {device} to dynamodb.")
 
 
-def get_latest_releases(today):
+def get_latest_releases():
     """Get latest releases from Apple website"""
     logger.info(f"Getting latest apple releases.")
     http = urllib3.PoolManager()
@@ -114,7 +106,6 @@ def get_latest_releases(today):
                     releases.append(x)
 
     releases = {
-        "timestamp": today,
         "iOS": releases[0],
         "macOS": releases[1],
         "tvOS": releases[2],
@@ -129,12 +120,13 @@ def lambda_handler(event, context):
 
     today = int(time.time())
 
-    releases = get_latest_releases(today=today)
+    releases = get_latest_releases()
 
     # Get latest releases in dynamo
     dynamodb = create_dynamodb_client()
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
-    dynamo_releases, oldest_item = get_item(table=table, today=today)
+    dynamo_releases = get_item(table=table, device_list=DEVICE_LIST)
+    logger.info(dynamo_releases)
     # releases = {
     #         "timestamp": today,
     #         "macOS": "13.5.1",
@@ -158,6 +150,5 @@ def lambda_handler(event, context):
         today=today,
         release_dictionary=releases,
         db_list=dynamo_releases,
-        db_table_conn=table,
-        oldest_item=oldest_item
+        db_table_conn=table
     )

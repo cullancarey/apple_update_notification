@@ -18,33 +18,25 @@ def get_param(param):
     return response["Parameter"]["Value"]
 
 
-def get_item(table, today):
+def get_item(table, device_list):
     """Retrieves latest releases item from DynamoDB table"""
-    logger.info("Retrieving item from Dynamo.")
-    try:
-        response = table.scan(
-            Limit=10,
-            ScanFilter={
-                "timestamp": {"ComparisonOperator": "LT", "AttributeValueList": [today]}
-            }
-        )
-    except ClientError as err:
-        logger.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
-    else:
-        if response["Items"]:
-            items = response['Items']
-            logger.info(
-                f"Successfully retrieved item from DynamoDB."
-            )
-            # Sort items by timestamp in descending order
-            newest_item = sorted(items, key=lambda x: x['timestamp'], reverse=True)
-            oldest_item = min(items, key=lambda x: x['timestamp'])
-            return newest_item[0], oldest_item
+    logger.info("Retrieving items from Dynamo.")
+    for device in device_list:
+        try:
+            response = table.get_item(Key=device)
+        except ClientError as err:
+            logger.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
         else:
-            logger.error(
-                f"Unable to find latest item from table: {table}."
-            )
-            return False
+            if response["Item"]:
+                logger.info(
+                    f"Successfully retrieved item from DynamoDB."
+                )
+                return response["Item"]
+            else:
+                logger.error(
+                    f"Unable to find item from table: {table}."
+                )
+                return False
 
 
 def authenticate_twitter_client():
