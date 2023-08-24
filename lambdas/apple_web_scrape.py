@@ -34,12 +34,8 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn):
     logger.info(difference)
 
     if difference:
-        for device in DEVICE_LIST:
-            if device in difference.keys():
-                logger.info(f"Update available for {device}. Updating Dynamo.")
+        for device in difference.keys():
                 update_item(table=db_table_conn, device=device, release_dict=release_dictionary)
-            else:
-                logger.info(f"No new updates for {device}")
         logger.info(f"Finished updating releases.")
     else:
         logger.info(f"No updates available at {today}.")
@@ -47,6 +43,7 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn):
 
 def update_item(table, device, release_dict):
     """Updates DynamoDB with new release value"""
+    logger.info(f"Update available for {device}. Updating DynamoDB.")
     try:
         table.update_item(
             Key={"device": device},
@@ -61,7 +58,7 @@ def update_item(table, device, release_dict):
     except ClientError as err:
         logger.error(f"Exception ocurred updating {device} in DynamoDB: {err}")
     else:
-        logger.info(f"Successfully uploaded {device} to dynamodb.")
+        logger.info(f"Successfully uploaded {device} to DynamoDB.")
 
 
 def get_latest_releases():
