@@ -1,99 +1,117 @@
-# #############################################
-# #### APPLE UPDATE NOTIFICATION LAMBDA #######
-# #############################################
+#############################################
+#### APPLE UPDATE NOTIFICATION LAMBDA #######
+#############################################
 
 
-# resource "aws_s3_object" "apple_send_update_lambda_file" {
-#   bucket      = aws_s3_bucket.apple_send_update_bucket.id
-#   key         = "${local.lambda_name}.zip"
-#   source      = "lambda_build/${local.lambda_name}.zip"
-#   source_hash = filemd5("lambda_build/${local.lambda_name}.zip")
-# }
+locals {
+  send_update_lambda_name = "apple_send_update"
+}
 
-# resource "aws_lambda_function" "apple_send_update_lambda" {
-#   s3_bucket     = aws_s3_bucket.apple_send_update_bucket.id
-#   s3_key        = aws_s3_object.apple_send_update_lambda_file.id
-#   function_name = local.lambda_name
-#   role          = aws_iam_role.iam_for_apple_send_update_lambda.arn
-#   handler       = "${local.lambda_name}.lambda_handler"
-#   description   = "Lambda function for sending notifications about the newest apple releases"
+data "archive_file" "apple_send_update_lambda" {
+  type        = "zip"
+  source_file = "../lambdas/${local.send_update_lambda_name}.py"
+  output_path = "${local.send_update_lambda_name}.zip"
+}
 
-#   source_code_hash = aws_s3_object.apple_send_update_lambda_file.id
+resource "aws_s3_object" "apple_send_update_lambda_file" {
+  bucket      = aws_s3_bucket.apple_update_notification_bucket.id
+  key         = "${local.send_update_lambda_name}.zip"
+  source      = "${local.send_update_lambda_name}.zip"
+  source_hash = data.archive_file.apple_send_update_lambda.output_base64sha512
+}
 
-#   runtime = "python3.9"
-#   timeout = 90
-# }
+resource "aws_lambda_function" "apple_send_update_lambda" {
+  s3_bucket     = aws_s3_bucket.apple_update_notification_bucket.id
+  s3_key        = aws_s3_object.apple_send_update_lambda_file.id
+  function_name = local.send_update_lambda_name
+  role          = aws_iam_role.iam_for_apple_send_update_lambda.arn
+  handler       = "${local.send_update_lambda_name}.lambda_handler"
+  description   = "Lambda function for sending notifications about the newest apple releases"
 
-# resource "aws_iam_role" "iam_for_apple_send_update_lambda" {
-#   name        = "${local.lambda_name}-role"
-#   path        = "/service-role/"
-#   description = "IAM role for ${local.lambda_name} lambda."
+  source_code_hash = data.archive_file.apple_send_update_lambda.output_base64sha512
 
-#   assume_role_policy = <<POLICY
-# {
-#   "Version": "2012-10-17",
-#   "Statement": [
-#     {
-#       "Effect": "Allow",
-#       "Principal": {
-#         "Service": "lambda.amazonaws.com"
-#       },
-#       "Action": "sts:AssumeRole"
-#     }
-#   ]
-# }
+  layers = [aws_lambda_layer_version.lambda_utils_layer.arn]
 
-# POLICY
-# }
+  runtime = "python3.9"
+  timeout = 90
+
+}
+
+data "aws_iam_policy_document" "iam_for_apple_send_update_lambda_policy_document" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "iam_for_apple_send_update_lambda" {
+  name        = "${local.send_update_lambda_name}_role"
+  path        = "/service-role/"
+  description = "IAM role for ${local.send_update_lambda_name} lambda."
+
+  assume_role_policy = data.aws_iam_policy_document.iam_for_apple_send_update_lambda_policy_document.json
+}
+
+data "aws_iam_policy_document" "apple_send_update_lambda_iam_policy_document" {
+  statement {
+    sid = "AllowCloudwatch"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:CreateLogGroup",
+    ]
+    resources = [
+      "arn:aws:logs:us-east-2:${local.account_id}:log-group:/aws/lambda/${local.send_update_lambda_name}:*",
+      "arn:aws:logs:us-east-2:${local.account_id}:*",
+    ]
+    effect = "Allow"
+  }
+
+  statement {
+    sid = "AllowS3"
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket",
+    ]
+    resources = ["${aws_s3_bucket.apple_update_notification_bucket.arn}/*"]
+    effect    = "Allow"
+  }
+
+  statement {
+    sid = "AllowParameterStore"
+    actions = [
+      "ssm:GetParameter",
+    ]
+    resources = [
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_api_key_${var.environment}",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_secret_key_${var.environment}",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_twitter_access_token_${var.environment}",
+      "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_access_secret_token_${var.environment}"
+    ]
+    effect = "Allow"
+  }
+}
+
+resource "aws_iam_policy" "apple_send_update_lambda_iam_policy" {
+  name        = "${local.send_update_lambda_name}_role_policy"
+  path        = "/service-role/"
+  description = "IAM policy for ${aws_iam_role.iam_for_apple_send_update_lambda.name}"
+  policy      = data.aws_iam_policy_document.apple_send_update_lambda_iam_policy_document.json
+
+}
+
+resource "aws_iam_role_policy_attachment" "apple_send_update_lambda_attach" {
+  role       = aws_iam_role.iam_for_apple_send_update_lambda.name
+  policy_arn = aws_iam_policy.apple_send_update_lambda_iam_policy.arn
+}
 
 
-# resource "aws_iam_policy" "apple_send_update_lambda_iam_policy" {
-#   name        = "${local.lambda_name}-role-policy"
-#   path        = "/service-role/"
-#   description = "IAM policy for ${aws_iam_role.iam_for_apple_send_update_lambda.name}"
-#   policy      = <<POLICY
-# {
-#     "Version": "2012-10-17",
-#     "Statement": [
-#         {
-#             "Sid": "AllowGetParameter",
-#             "Effect": "Allow",
-#             "Action": "ssm:GetParameter",
-#             "Resource": [
-#                 "arn:aws:ssm:us-east-2:${local.account_id}:parameter/${var.environment}_apple_send_update_api_key",
-#                 "arn:aws:ssm:us-east-2:${local.account_id}:parameter/a${var.environment}_pple_send_update_twitter_access_token",
-#                 "arn:aws:ssm:us-east-2:${local.account_id}:parameter/${var.environment}_apple_send_update_access_secret_token",
-#                 "arn:aws:ssm:us-east-2:${local.account_id}:parameter/${var.environment}_apple_send_update_secret_key"
-#             ]
-#         },
-#         {
-#             "Sid": "AllowCloudwatch",
-#             "Effect": "Allow",
-#             "Action": [
-#                 "logs:CreateLogStream",
-#                 "logs:PutLogEvents",
-#                 "logs:CreateLogGroup"
-#             ],
-#             "Resource": ["arn:aws:logs:us-east-2:${local.account_id}:log-group:/aws/lambda/${local.lambda_name}:*",
-#                             "arn:aws:logs:us-east-2:${local.account_id}:*"]
-#         },
-#         {
-#             "Sid": "AllowS3",
-#             "Effect": "Allow",
-#             "Action": ["s3:GetObject", "s3:ListBucket"],
-#             "Resource": "arn:aws:s3:::${aws_s3_bucket.apple_send_update_bucket.id}/*"
-#         }
-#     ]
-# }
-
-
-
-
-
-# POLICY
-# }
-
-# resource "aws_iam_role_policy_attachment" "apple_send_update_lambda_attach" {
-#   role       = aws_iam_role.iam_for_apple_send_update_lambda.name
-#   policy_arn = aws_iam_policy.apple_send_update_lambda_iam_policy.arn
-# }
+resource "aws_lambda_event_source_mapping" "apple_send_update_lambda_event_mapping" {
+  event_source_arn  = aws_dynamodb_table.apple_os_updates_table.stream_arn
+  function_name     = aws_lambda_function.apple_send_update_lambda.arn
+  starting_position = "LATEST"
+}
