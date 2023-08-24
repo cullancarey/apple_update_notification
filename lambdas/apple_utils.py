@@ -32,12 +32,14 @@ def get_item(table, device_list):
                 logger.info(
                     f"Successfully retrieved item from DynamoDB."
                 )
-                return response["Item"]
+                releases[device] = response["Item"].get('Release')
+                releases['release_statements'][device] = response["Item"].get('ReleaseStatement')
             else:
                 logger.error(
                     f"Unable to find item from table: {table}."
                 )
                 return False
+    return releases
 
 
 def authenticate_twitter_client():
