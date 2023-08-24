@@ -2,6 +2,7 @@
 import boto3
 import tweepy
 import os
+import sys
 import logging
 from botocore.exceptions import ClientError
 
@@ -39,7 +40,7 @@ def get_item(table, device_list):
         except ClientError as err:
             logger.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
         else:
-            if response["Item"]:
+            if response.get("Item", False):
                 logger.info(
                     f"Successfully retrieved item from DynamoDB."
                 )
@@ -47,9 +48,9 @@ def get_item(table, device_list):
                 releases['release_statements'][device] = response["Item"].get('ReleaseStatement')
             else:
                 logger.error(
-                    f"Unable to find item from table: {table}."
+                    f"Unable to find item from table: {table}. Exiting..."
                 )
-                return False
+                sys.exit()
     return releases
 
 
