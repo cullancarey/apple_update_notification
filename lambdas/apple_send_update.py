@@ -31,7 +31,7 @@ def lambda_handler(event, context):
 def post_tweet(twitter_client, tweet_content):
     try:
         # Post the tweet
-        response = twitter_client.create_tweet(text=tweet_content)
+        response = twitter_client.create_tweet(text=tweet_content, user_auth=False)
         logger.info(f"Tweet posted successfully! Tweet ID: {response['id']}")
     except Exception as e:
         logger.error(f"An error occurred creating tweet: {e}")
