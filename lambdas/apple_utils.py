@@ -75,6 +75,15 @@ def authenticate_twitter_client():
     # auth = tweepy.OAuthHandler(f"{client_id}", f"{client_secret}")
     # auth.set_access_token(f"{access_token}", f"{access_token_secret}")
 
+#     oauth2_user_handler = tweepy.OAuth2UserHandler(
+#     client_id=client_id
+#     # redirect_uri="Callback / Redirect URI / URL here",
+#     # scope=["Scope here", "Scope here"],
+#     # Client Secret is only necessary if using a confidential client
+#     # client_secret=client_secret
+# )
+
+
     # Create API object
     twitter_client = tweepy.Client(consumer_key=client_id, consumer_secret=client_secret, access_token=access_token, access_token_secret=access_token_secret)
     # twitter_client = tweepy.Client(bearer_token=bearer_token)
