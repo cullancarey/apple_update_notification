@@ -1,0 +1,82 @@
+"""module for python aws sdk"""
+import boto3
+import tweepy
+import os
+import sys
+import logging
+from botocore.exceptions import ClientError
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+
+
+def get_param(param):
+    """Retrieves parameter secrets from Parameter Store"""
+    logging.info(f"Retrieving parameter {param}.")
+    client = boto3.client("ssm")
+    response = client.get_parameter(Name=param, WithDecryption=True)
+    return response["Parameter"]["Value"]
+
+
+def get_item(table, device_list):
+    """Retrieves latest releases item from DynamoDB table"""
+    logging.info("Retrieving items from Dynamo.")
+    releases = {
+    'iOS': None,
+    'macOS': None,
+    'tvOS': None,
+    'watchOS': None,
+    'release_statements': {
+        'iOS': None,
+        'macOS': None,
+        'tvOS': None,
+        'watchOS': None
+            }
+            }                   
+    for device in device_list:
+        try:
+            response = table.get_item(Key={"device": device})
+        except ClientError as err:
+            logging.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
+        else:
+            if response.get("Item", False):
+                logging.info(
+                    f"Successfully retrieved item from DynamoDB."
+                )
+                releases[device] = response["Item"].get('ReleaseVersion')
+                releases['release_statements'][device] = response["Item"].get('ReleaseStatement')
+            else:
+                logging.error(
+                    f"Unable to find item from table: {table}. Exiting..."
+                )
+                sys.exit()
+    return releases
+
+
+def authenticate_twitter_client():
+    """Gets authenticated session from Twitter"""
+    logging.info("Creating twitter client.")
+    client_id = get_param(
+        f"apple_update_notification_api_key"
+    )
+    access_token = get_param(
+        f"apple_update_notification_twitter_access_token"
+    )
+    access_token_secret = get_param(
+        f"apple_update_notification_access_secret_token"
+    )
+    client_secret = get_param(
+        f"apple_update_notification_secret_key"
+    )
+
+
+    # Create API object
+    twitter_client = tweepy.Client(consumer_key=client_id, consumer_secret=client_secret, access_token=access_token, access_token_secret=access_token_secret)
+    return twitter_client
+
+
+def create_dynamodb_client():
+    """Creates dynamodb client"""
+    logging.info("Creating Dynamo client.")
+    session = boto3.resource("dynamodb")
+    return session
