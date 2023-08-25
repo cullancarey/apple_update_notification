@@ -26,7 +26,7 @@ jobs:
     name: 'Dev - Plan Terraform'
     if: github.event.pull_request.base.ref == 'develop'
     runs-on: ubuntu-latest
-    environment: Development
+    environment: development
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
