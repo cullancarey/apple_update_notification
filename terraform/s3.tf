@@ -5,9 +5,9 @@
 
 resource "aws_s3_bucket" "apple_update_notification_bucket" {
   #checkov:skip=CKV_AWS_144:Ensure that S3 bucket has cross-region replication enabled
-  bucket = "apple-update-notification"
+  bucket = "apple-update-notification-${local.account_id}"
   tags = {
-    "Name" = "apple-update-notification"
+    "Name" = "apple-update-notification-${local.account_id}"
   }
 }
 
