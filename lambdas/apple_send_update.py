@@ -8,8 +8,7 @@ from apple_utils import (
 )
 
 # Set up logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 def lambda_handler(event, context):
@@ -27,9 +26,9 @@ def lambda_handler(event, context):
 def post_tweet(twitter_client, tweet_content):
     try:
         # Post the tweet
-        logger.info(f"Sending tweet with content: {tweet_content}")
+        logging.info(f"Sending tweet with content: {tweet_content}")
         response = twitter_client.create_tweet(text=tweet_content)
     except Exception as e:
-        logger.error(f"An error occurred creating tweet: {e}")
+        logging.error(f"An error occurred creating tweet: {e}")
     else:
-        logger.info(f"Tweet posted successfully! Tweet info: {response}")
+        logging.info(f"Tweet posted successfully! Tweet info: {response}")

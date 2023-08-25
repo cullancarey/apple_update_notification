@@ -15,8 +15,7 @@ from apple_utils import (
 )
 
 # Set up logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS"]
 
@@ -31,19 +30,19 @@ def compare_lists(today, release_dictionary, db_list, db_table_conn):
         if k not in release_dictionary or release_dictionary[k] != db_list[k]
     }
     difference.pop("release_statements")
-    logger.info(difference)
+    logging.info(difference)
 
     if difference:
         for device in difference.keys():
                 update_item(table=db_table_conn, device=device, release_dict=release_dictionary)
-        logger.info(f"Finished updating releases.")
+        logging.info(f"Finished updating releases.")
     else:
-        logger.info(f"No updates available at {today}.")
+        logging.info(f"No updates available at {today}.")
 
 
 def update_item(table, device, release_dict):
     """Updates DynamoDB with new release value"""
-    logger.info(f"Update available for {device}. Updating DynamoDB.")
+    logging.info(f"Update available for {device}. Updating DynamoDB.")
     try:
         table.update_item(
             Key={"device": device},
@@ -56,14 +55,14 @@ def update_item(table, device, release_dict):
             ReturnValues="UPDATED_NEW",
         )
     except ClientError as err:
-        logger.error(f"Exception ocurred updating {device} in DynamoDB: {err}")
+        logging.error(f"Exception ocurred updating {device} in DynamoDB: {err}")
     else:
-        logger.info(f"Successfully uploaded {device} to DynamoDB.")
+        logging.info(f"Successfully uploaded {device} to DynamoDB.")
 
 
 def get_latest_releases():
     """Get latest releases from Apple website"""
-    logger.info(f"Getting latest apple releases.")
+    logging.info(f"Getting latest apple releases.")
     http = urllib3.PoolManager()
     page = http.request("GET", "https://support.apple.com/en-us/HT201222")
 
@@ -119,7 +118,7 @@ def lambda_handler(event, context):
     dynamodb = create_dynamodb_client()
     table = dynamodb.Table(os.environ.get("dynamodb_table_name"))
     dynamo_releases = get_item(table=table, device_list=DEVICE_LIST)
-    logger.info(dynamo_releases)
+    logging.info(dynamo_releases)
     # releases = {
     #         "timestamp": today,
     #         "macOS": "13.5.1",
@@ -135,8 +134,8 @@ def lambda_handler(event, context):
     #     }
 
     # Check if release is up to date
-    logger.info(f"Website list: {releases}")
-    logger.info(f"DynamoDB list: {dynamo_releases}")
+    logging.info(f"Website list: {releases}")
+    logging.info(f"DynamoDB list: {dynamo_releases}")
 
     # Compares results from apple website and dynamo table
     compare_lists(

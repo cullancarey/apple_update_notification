@@ -7,13 +7,12 @@ import logging
 from botocore.exceptions import ClientError
 
 # Set up logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 def get_param(param):
     """Retrieves parameter secrets from Parameter Store"""
-    logger.info(f"Retrieving parameter {param}.")
+    logging.info(f"Retrieving parameter {param}.")
     client = boto3.client("ssm")
     response = client.get_parameter(Name=param, WithDecryption=True)
     return response["Parameter"]["Value"]
@@ -21,7 +20,7 @@ def get_param(param):
 
 def get_item(table, device_list):
     """Retrieves latest releases item from DynamoDB table"""
-    logger.info("Retrieving items from Dynamo.")
+    logging.info("Retrieving items from Dynamo.")
     releases = {
     'iOS': None,
     'macOS': None,
@@ -38,16 +37,16 @@ def get_item(table, device_list):
         try:
             response = table.get_item(Key={"device": device})
         except ClientError as err:
-            logger.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
+            logging.error(f"Exception ocurred retrieving item from DynamoDB: {err}")
         else:
             if response.get("Item", False):
-                logger.info(
+                logging.info(
                     f"Successfully retrieved item from DynamoDB."
                 )
                 releases[device] = response["Item"].get('ReleaseVersion')
                 releases['release_statements'][device] = response["Item"].get('ReleaseStatement')
             else:
-                logger.error(
+                logging.error(
                     f"Unable to find item from table: {table}. Exiting..."
                 )
                 sys.exit()
@@ -56,7 +55,7 @@ def get_item(table, device_list):
 
 def authenticate_twitter_client():
     """Gets authenticated session from Twitter"""
-    logger.info("Creating twitter client.")
+    logging.info("Creating twitter client.")
     client_id = get_param(
         f"apple_update_notification_api_key"
     )
@@ -78,6 +77,6 @@ def authenticate_twitter_client():
 
 def create_dynamodb_client():
     """Creates dynamodb client"""
-    logger.info("Creating Dynamo client.")
+    logging.info("Creating Dynamo client.")
     session = boto3.resource("dynamodb")
     return session
