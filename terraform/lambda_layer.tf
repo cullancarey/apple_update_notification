@@ -12,5 +12,5 @@ resource "aws_lambda_layer_version" "lambda_utils_layer" {
   s3_object_version = aws_s3_object.lambda_layer_deployment_package_file.version_id
   layer_name        = "apple_utils"
 
-  compatible_runtimes = ["python3.9"]
+  compatible_runtimes = ["python3.11"]
 }

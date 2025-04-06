@@ -32,7 +32,7 @@ resource "aws_lambda_function" "apple_send_update_lambda" {
 
   layers = [aws_lambda_layer_version.lambda_utils_layer.arn]
 
-  runtime = "python3.9"
+  runtime = "python3.11"
   timeout = 90
 
 }

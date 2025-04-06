@@ -39,7 +39,7 @@ resource "aws_lambda_function" "apple_web_scrape_lambda" {
     }
   }
 
-  runtime = "python3.9"
+  runtime = "python3.11"
   timeout = 90
 }
 
