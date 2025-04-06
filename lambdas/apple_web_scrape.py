@@ -1,6 +1,7 @@
 import sys
 
 sys.path.append("/opt")
+
 import os
 import logging
 import time
@@ -25,19 +26,21 @@ def fetch_apple_release_page(url=APPLE_RELEASE_URL):
     """Fetch the latest Apple releases page."""
     http = urllib3.PoolManager()
     try:
-        response = http.request("GET", url)
-        response.raise_for_status()
+        response = http.request("GET", url, redirect=True)
+        if response.status != 200:
+            logger.error(f"Failed to fetch URL {url}. Status code: {response.status}")
+            return None
         return response.data
     except urllib3.exceptions.HTTPError as e:
         logger.error(f"HTTP error occurred while fetching Apple release page: {e}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error occurred: {e}")
+        logger.error(f"Unexpected error occurred: {e}", exc_info=True)
         return None
 
 
 def parse_release_statements(page_content):
-    """Parse and return release statements from the fetched HTML."""
+    """Parse and return release statements from fetched HTML."""
     soup = BeautifulSoup(page_content, "html.parser")
     results = soup.find_all("li")
     release_statements = []
@@ -57,7 +60,7 @@ def parse_release_statements(page_content):
 
 
 def extract_release_versions(release_statements):
-    """Extract and return release versions from release statements."""
+    """Extract release versions from statements."""
     releases = []
     for statement in release_statements:
         version_match = re.search(r"\b\d+(\.\d+)+\b", statement)
@@ -94,9 +97,12 @@ def get_latest_releases():
         for device, statement in zip(DEVICE_LIST, release_statements)
     }
 
-    return {
+    releases_dict = {
         device: version for device, version in zip(DEVICE_LIST, release_versions)
-    } | {"release_statements": release_messages}
+    }
+    releases_dict["release_statements"] = release_messages
+
+    return releases_dict
 
 
 def update_dynamodb(table, device, release_version, release_statement):
