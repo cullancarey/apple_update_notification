@@ -9,7 +9,7 @@ import re
 
 from bs4 import BeautifulSoup
 from botocore.exceptions import ClientError
-from apple_utils import get_item, create_dynamodb_client
+from apple_utils import get_item, create_dynamodb_resource
 
 # Constants
 APPLE_RELEASE_URL = "https://support.apple.com/en-us/HT201222"
@@ -169,7 +169,7 @@ def lambda_handler(event, context):
     #         },
     #     }
 
-    dynamodb = create_dynamodb_client()
+    dynamodb = create_dynamodb_resource()
     table = dynamodb.Table(dynamodb_table_name)
 
     dynamo_releases = get_item(table=table, device_list=DEVICE_LIST)
