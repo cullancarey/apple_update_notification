@@ -82,8 +82,7 @@ def extract_release_versions(release_statements):
         if version_match:
             releases[device] = version_match.group(0)
         else:
-            logger.warning(f"Could not extract version from statement: {statement}")
-            releases[device] = "Unknown"
+            logger.error(f"Could not extract version from statement: {statement}")
 
     if len(releases) < len(DEVICE_LIST):
         logger.error("Incomplete release versions extracted.")
