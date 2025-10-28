@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 # Constants
 # -------------------------------------------------------------------------
 PARAMETER_PREFIX = "apple_update_notification"
-DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS"]
+DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS", "visionOS"]
 
 # -------------------------------------------------------------------------
 # Global AWS Session / Config (improves Lambda cold-start performance)
