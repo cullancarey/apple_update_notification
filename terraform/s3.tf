@@ -17,8 +17,11 @@ data "aws_iam_policy_document" "allow_access_from_lambda_user_policy_document" {
     effect = "Allow"
 
     principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.iam_for_apple_web_scrape_lambda.arn]
+      type = "AWS"
+      identifiers = [
+        aws_iam_role.iam_for_apple_web_scrape_lambda.arn,
+        aws_iam_role.iam_for_apple_send_update_lambda.arn
+      ]
     }
 
     actions = [

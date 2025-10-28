@@ -6,11 +6,15 @@ on:
       - main
       - develop
 
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
 jobs:
   format-black:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python
       uses: actions/setup-python@v5
     - name: Install dependencies
@@ -24,7 +28,7 @@ jobs:
   run-pylint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python
       uses: actions/setup-python@v5
     - name: Install dependencies
@@ -38,11 +42,11 @@ jobs:
   checkov:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.11
+      - uses: actions/checkout@v5
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.13
       - name: Test with Checkov
         id: checkov
         uses: bridgecrewio/checkov-action@master

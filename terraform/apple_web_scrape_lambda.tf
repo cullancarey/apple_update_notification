@@ -21,7 +21,7 @@ resource "aws_s3_object" "apple_web_scrape_lambda_file" {
 
 resource "aws_lambda_function" "apple_web_scrape_lambda" {
   s3_bucket     = aws_s3_bucket.apple_update_notification_bucket.id
-  s3_key        = aws_s3_object.apple_web_scrape_lambda_file.id
+  s3_key        = aws_s3_object.apple_web_scrape_lambda_file.key
   function_name = local.web_scrape_lambda_name
   role          = aws_iam_role.iam_for_apple_web_scrape_lambda.arn
   handler       = "${local.web_scrape_lambda_name}.lambda_handler"
@@ -35,11 +35,11 @@ resource "aws_lambda_function" "apple_web_scrape_lambda" {
     variables = {
       website             = var.root_domain_name
       environment         = var.environment
-      dynamodb_table_name = aws_dynamodb_table.apple_os_updates_table.id
+      dynamodb_table_name = aws_dynamodb_table.apple_os_updates_table.name
     }
   }
 
-  runtime = "python3.11"
+  runtime = "python3.13"
   timeout = 90
 }
 
@@ -93,8 +93,11 @@ data "aws_iam_policy_document" "apple_web_scrape_lambda_iam_policy_document" {
       "s3:GetObject",
       "s3:ListBucket",
     ]
-    resources = ["${aws_s3_bucket.apple_update_notification_bucket.arn}/*"]
-    effect    = "Allow"
+    resources = [
+      aws_s3_bucket.apple_update_notification_bucket.arn,
+      "${aws_s3_bucket.apple_update_notification_bucket.arn}/*"
+    ]
+    effect = "Allow"
   }
 }
 
