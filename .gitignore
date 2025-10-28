@@ -189,3 +189,5 @@ terraform/*.json
 *.drawio*
 
 *lambda_build*
+
+*.zip*

@@ -1,0 +1,5 @@
+beautifulsoup4
+tweepy
+pytest
+botocore
+boto3

@@ -1,48 +1,93 @@
-"""AWS Lambda Function to Tweet Updates Based on DynamoDB Streams"""
+"""AWS Lambda function to tweet Apple release updates based on DynamoDB Streams."""
 
 import sys
+import logging
+from typing import Any, Dict
 
+# Add the Lambda layer path for dependencies (e.g., apple_utils, tweepy, boto3)
 sys.path.append("/opt")
 
-import logging
 from apple_utils import authenticate_twitter_client
 
-# Configure logging
+# -------------------------------------------------------------------------
+# Constants
+# -------------------------------------------------------------------------
+SUPPORTED_DEVICES = ["iOS", "macOS", "watchOS", "tvOS", "visionOS"]
+
+# -------------------------------------------------------------------------
+# Logging Configuration
+# -------------------------------------------------------------------------
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def lambda_handler(event, context):
-    """Main AWS Lambda handler function to process DynamoDB stream events and tweet updates."""
+# -------------------------------------------------------------------------
+# Lambda Handler
+# -------------------------------------------------------------------------
+def lambda_handler(event: Dict[str, Any], context: Any) -> None:
+    """
+    Processes DynamoDB stream records and tweets any new release updates.
+    Invoked automatically by DynamoDB Streams → Lambda event mapping.
+    """
 
-    # Authenticate Twitter client once per Lambda invocation
-    twitter_client = authenticate_twitter_client()
+    if not event.get("Records"):
+        logger.info("No records received in event; nothing to process.")
+        return
 
-    # Validate and process each DynamoDB record
-    for record in event.get("Records", []):
+    # Authenticate Twitter client once per invocation (avoid per-record overhead)
+    try:
+        twitter_client = authenticate_twitter_client()
+        logger.info("Twitter client successfully authenticated.")
+    except Exception as e:
+        logger.error(f"Failed to authenticate Twitter client: {e}", exc_info=True)
+        return
+
+    for record in event["Records"]:
         try:
-            if "dynamodb" not in record or "NewImage" not in record["dynamodb"]:
-                logger.warning("Record missing DynamoDB or NewImage key; skipping.")
+            dynamodb_data = record.get("dynamodb", {})
+            if "NewImage" not in dynamodb_data:
+                logger.info("Skipping record without 'NewImage'.")
                 continue
 
-            release_statement = (
-                record["dynamodb"]["NewImage"].get("ReleaseStatement", {}).get("S")
-            )
+            new_image = dynamodb_data["NewImage"]
+            device_name = new_image.get("device", {}).get("S")
+            release_statement = new_image.get("ReleaseStatement", {}).get("S")
+
             if not release_statement:
-                logger.warning("ReleaseStatement missing from record; skipping.")
+                logger.info("No 'ReleaseStatement' found; skipping record.")
                 continue
 
+            # Skip non-Apple software entries (defensive filter)
+            if device_name and device_name not in SUPPORTED_DEVICES:
+                logger.info(f"Skipping unsupported device type: {device_name}")
+                continue
+
+            logger.info(
+                f"Tweeting release update for {device_name or 'unknown device'}."
+            )
             post_tweet(twitter_client, release_statement)
 
         except Exception as e:
-            logger.error(f"Unexpected error processing record: {e}", exc_info=True)
+            logger.error(f"Error processing record: {e}", exc_info=True)
+
+    logger.info("Lambda execution completed successfully.")
 
 
-def post_tweet(twitter_client, tweet_content):
-    """Posts a tweet using the authenticated Twitter client."""
+# -------------------------------------------------------------------------
+# Tweet Posting Function
+# -------------------------------------------------------------------------
+def post_tweet(twitter_client: Any, tweet_content: str) -> None:
+    """
+    Posts a tweet using the authenticated Tweepy client.
+    Wraps all exceptions and logs structured responses.
+    """
+    if not tweet_content:
+        logger.warning("Empty tweet content received; skipping.")
+        return
+
     try:
-        logger.info(f"Attempting to tweet: {tweet_content}")
+        logger.info(f"Posting tweet: {tweet_content}")
         response = twitter_client.create_tweet(text=tweet_content)
-        logger.info(f"Tweet successfully posted: {response}")
+        logger.info(f"Tweet successfully posted. Response: {response}")
     except Exception as e:
         logger.error(f"Error posting tweet: {e}", exc_info=True)

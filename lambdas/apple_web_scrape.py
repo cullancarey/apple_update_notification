@@ -13,8 +13,8 @@ from botocore.exceptions import ClientError
 from apple_utils import get_item, create_dynamodb_resource
 
 # Constants
-APPLE_RELEASE_URL = "https://support.apple.com/en-us/HT201222"
-DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS"]
+APPLE_RELEASE_URL = "https://support.apple.com/en-us/100100"
+DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS", "visionOS"]
 DYNAMODB_TABLE_ENV_VAR = "dynamodb_table_name"
 
 # Setup logging
@@ -24,54 +24,63 @@ logger.setLevel(logging.INFO)
 
 def fetch_apple_release_page(url=APPLE_RELEASE_URL):
     """Fetch the latest Apple releases page."""
-    http = urllib3.PoolManager()
+    http = urllib3.PoolManager(timeout=urllib3.Timeout(connect=5, read=10))
     try:
         response = http.request("GET", url, redirect=True)
         if response.status != 200:
             logger.error(f"Failed to fetch URL {url}. Status code: {response.status}")
             return None
-        return response.data
+        return response.data.decode("utf-8", errors="ignore")
     except urllib3.exceptions.HTTPError as e:
         logger.error(f"HTTP error occurred while fetching Apple release page: {e}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error occurred: {e}", exc_info=True)
+        logger.error(f"Error fetching Apple release page: {e}", exc_info=True)
         return None
 
 
 def parse_release_statements(page_content):
     """Parse and return release statements mapped explicitly by device."""
     soup = BeautifulSoup(page_content, "html.parser")
-    results = soup.find_all("li")
+
+    # Updated: new Apple markup uses <ul class="gb-list"><li><p class="gb-paragraph">...</p></li>
+    paragraphs = soup.select("ul.gb-list li.gb-list_item p.gb-paragraph")
     release_statements = {}
 
-    for item in results:
-        text = item.get_text(strip=True).replace(" ", " ")
-        if "The latest version" in text:
-            statement = re.search("^.*?[.!?](?:\\s|$)(?!.*?\\))", text)
-            if statement:
-                statement_text = statement.group(0)
-                statement_lower = statement_text.lower()
-                if "ios" in statement_lower and "ipados" in statement_lower:
-                    release_statements["iOS"] = statement_text
-                elif "macos" in statement_lower:
-                    release_statements["macOS"] = statement_text
-                elif "watchos" in statement_lower:
-                    release_statements["watchOS"] = statement_text
-                elif "tvos" in statement_lower:
-                    release_statements["tvOS"] = statement_text
+    for p in paragraphs:
+        text = p.get_text(" ", strip=True).replace("\xa0", " ")
+        lower = text.lower()
 
-    # Verify that all devices have a statement
-    missing_devices = [
-        device for device in DEVICE_LIST if device not in release_statements
-    ]
-    if missing_devices:
-        logger.error(
-            f"Incomplete release statements fetched, missing devices: {missing_devices}"
+        if "the latest version" not in lower:
+            continue
+
+        # Extract the main sentence up to the version number
+        match = re.search(r"The latest version[^.]+?\d+(?:\.\d+)+", text)
+        if not match:
+            continue
+
+        statement_text = match.group(0).strip()
+
+        # Map each OS explicitly
+        if "ios" in lower and "ipados" in lower:
+            release_statements["iOS"] = statement_text
+        elif "macos" in lower:
+            release_statements["macOS"] = statement_text
+        elif "watchos" in lower:
+            release_statements["watchOS"] = statement_text
+        elif "tvos" in lower:
+            release_statements["tvOS"] = statement_text
+        elif "visionos" in lower:
+            release_statements["visionOS"] = statement_text
+
+    # Warn if some expected devices are missing
+    missing = [d for d in DEVICE_LIST if d not in release_statements]
+    if missing:
+        logger.warning(
+            f"Incomplete release statements fetched, missing devices: {missing}"
         )
-        return None
 
-    return release_statements
+    return release_statements if release_statements else None
 
 
 def extract_release_versions(release_statements):
@@ -84,7 +93,7 @@ def extract_release_versions(release_statements):
         else:
             logger.error(f"Could not extract version from statement: {statement}")
 
-    if len(releases) < len(DEVICE_LIST):
+    if len(releases) < len(release_statements):
         logger.error("Incomplete release versions extracted.")
         return None
 
@@ -108,10 +117,10 @@ def get_latest_releases():
     timestamp = int(time.time())
     release_messages = {
         device: f"{device} release available!\n{release_statements[device]}\n{timestamp}\n#{device} #apple"
-        for device in DEVICE_LIST
+        for device in release_statements
     }
 
-    releases_dict = {device: release_versions[device] for device in DEVICE_LIST}
+    releases_dict = {device: release_versions[device] for device in release_versions}
     releases_dict["release_statements"] = release_messages
 
     return releases_dict
@@ -147,8 +156,11 @@ def compare_and_update_releases(latest_releases, dynamo_releases, table):
     updates_needed = {
         device: latest_releases[device]
         for device in DEVICE_LIST
-        if device not in dynamo_releases
-        or latest_releases[device] != dynamo_releases[device]
+        if device in latest_releases
+        and (
+            device not in dynamo_releases
+            or latest_releases[device] != dynamo_releases.get(device)
+        )
     }
 
     if not updates_needed:
@@ -177,19 +189,7 @@ def lambda_handler(event, context):
     if not latest_releases:
         logger.error("Failed to retrieve latest releases.")
         return
-    # latest_releases = {
-    #         "timestamp": today,
-    #         "macOS": "13.5.1",
-    #         "tvOS": "16.6",
-    #         "watchOS": "9.6.1",
-    #         "iOS": "16.6",
-    #         "release_statements": {
-    #             "iOS": "iOS release available! \nThe latest version of iOS is 16.1.  \n2022-11-08 15:59:42.526826 \n#iOS #apple",
-    #             "macOS": "macOS release available! \nThe latest version of macOS is 13.  \n2022-11-08 15:59:42.526835 \n#macOS #apple",
-    #             "tvOS": "tvOS release available! \nThe latest version of tvOS is 16.1.  \n2022-11-08 15:59:42.526836 \n#tvOS #apple",
-    #             "watchOS": "watchOS release available! \nThe latest version of watchOS is 9.1.  \n2022-11-08 15:59:42.526838 \n#watchOS #apple",
-    #         },
-    #     }
+
     logger.info(f"Latest releases fetched: {latest_releases}")
 
     dynamodb = create_dynamodb_resource()

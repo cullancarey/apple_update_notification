@@ -22,7 +22,7 @@ resource "aws_s3_object" "apple_send_update_lambda_file" {
 
 resource "aws_lambda_function" "apple_send_update_lambda" {
   s3_bucket     = aws_s3_bucket.apple_update_notification_bucket.id
-  s3_key        = aws_s3_object.apple_send_update_lambda_file.id
+  s3_key        = aws_s3_object.apple_send_update_lambda_file.key
   function_name = local.send_update_lambda_name
   role          = aws_iam_role.iam_for_apple_send_update_lambda.arn
   handler       = "${local.send_update_lambda_name}.lambda_handler"
@@ -32,7 +32,7 @@ resource "aws_lambda_function" "apple_send_update_lambda" {
 
   layers = [aws_lambda_layer_version.lambda_utils_layer.arn]
 
-  runtime = "python3.11"
+  runtime = "python3.13"
   timeout = 90
 
 }
@@ -77,8 +77,11 @@ data "aws_iam_policy_document" "apple_send_update_lambda_iam_policy_document" {
       "s3:GetObject",
       "s3:ListBucket",
     ]
-    resources = ["${aws_s3_bucket.apple_update_notification_bucket.arn}/*"]
-    effect    = "Allow"
+    resources = [
+      aws_s3_bucket.apple_update_notification_bucket.arn,
+      "${aws_s3_bucket.apple_update_notification_bucket.arn}/*"
+    ]
+    effect = "Allow"
   }
 
   statement {

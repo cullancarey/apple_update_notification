@@ -11,12 +11,12 @@ jobs:
     name: Build Lambda Deployment Package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
     - name: Upload Lambda Deployment Package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: lambda_build
         path: apple_utils.zip
@@ -37,16 +37,16 @@ jobs:
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download all workflow run artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: ./terraform
 
     # Configure AWS Creds DEV
     - name: Configure AWS Credentials Dev
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         role-session-name: terraform-plan-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
@@ -95,16 +95,16 @@ jobs:
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download all workflow run artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: ./terraform
 
     # Configure AWS Creds Prod
     - name: Configure AWS Credentials Prod
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         role-session-name: terraform-plan-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
