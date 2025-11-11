@@ -3,7 +3,6 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = "apple_update_notification"
-      Website     = var.root_domain_name
       Environment = var.environment
     }
   }
@@ -21,7 +20,6 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = "apple_update_notification"
-      Website     = var.root_domain_name
       Environment = var.environment
     }
   }
@@ -33,7 +31,6 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = "apple_update_notification"
-      Website     = var.root_domain_name
       Environment = var.environment
     }
   }
