@@ -33,7 +33,6 @@ resource "aws_lambda_function" "apple_web_scrape_lambda" {
 
   environment {
     variables = {
-      website             = var.root_domain_name
       environment         = var.environment
       dynamodb_table_name = aws_dynamodb_table.apple_os_updates_table.name
     }
