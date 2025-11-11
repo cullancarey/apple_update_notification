@@ -1,5 +1,5 @@
-name: Deploy Reusable
-run-name: Running ${{github.workflow}} off of ${{ github.ref_name }}
+name: Deploy Apple Update Notification
+run-name: Deploying Apple Update Notification to ${{ github.ref_name }}
 
 on:
   push:

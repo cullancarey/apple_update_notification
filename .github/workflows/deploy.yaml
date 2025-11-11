@@ -1,4 +1,4 @@
-name: Deploy Apple Update Notification
+name: Deploy
 
 on:
   workflow_call:
