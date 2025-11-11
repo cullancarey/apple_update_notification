@@ -199,5 +199,7 @@ def lambda_handler(event, context):
     if not dynamo_releases:
         logger.warning("No existing data found in DynamoDB; populating fresh data.")
         dynamo_releases = {}
+    logger.info(f"Latest releases fetched: {latest_releases}")
+    logger.info(f"Existing releases in DynamoDB: {dynamo_releases}")
 
     compare_and_update_releases(latest_releases, dynamo_releases, table)
