@@ -191,3 +191,7 @@ terraform/*.json
 *lambda_build*
 
 *.zip*
+
+plan.txt
+
+tfplan

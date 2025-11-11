@@ -64,7 +64,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.$GITHUB_REF_NAME.conf
+      run: terraform init -backend-config=backend.${GITHUB_REF_NAME}.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -78,7 +78,12 @@ jobs:
       run: terraform validate -no-color
       continue-on-error: false
 
-      # On push to "main", build or change infrastructure according to Terraform configuration files
+    # On push to "main" or "develop", run a plan to see infrastructure according to Terraform configuration files
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -var-file=${GITHUB_REF_NAME}.tfvars -out=tfplan
+
+      # On push to "main" or "develop", build or change infrastructure according to Terraform configuration files
     - name: Terraform Apply
       id: apply
-      run: terraform apply -var-file=$GITHUB_REF_NAME.tfvars --auto-approve -input=false
+      run: terraform apply "tfplan"
