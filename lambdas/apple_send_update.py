@@ -103,7 +103,7 @@ def format_tweet(device: str, release: str) -> str:
         "Just dropped!",
         "New update rolling out now.",
         "Heads up — new release alert!",
-        "Apple’s latest is here.",
+        "Apple’s latest update is here.",
         "Fresh off Cupertino’s servers:"
     ]
     hashtags = {
