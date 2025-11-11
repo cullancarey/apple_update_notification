@@ -184,7 +184,7 @@ The tests mock external services (HTTP, SSM, Twitter, DynamoDB) to enable determ
 
 Environment Variables (Lambda):
 - `dynamodb_table_name` (web scrape lambda)
-- `website`, `environment` (various tagging/metadata variables)
+- `environment` (tagging/metadata variable)
 
 SSM Secure Parameters (name → purpose):
 - `apple_update_notification_api_key` – Twitter API key.
