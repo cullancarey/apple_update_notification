@@ -61,6 +61,11 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
+    - name: Show deployment environment
+      run: |
+        echo "GitHub Environment: ${{ inputs.environment }}"
+        echo "Terraform Env (branch-based): ${DEPLOY_ENV}"
+
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
