@@ -1,2 +1,2 @@
-beautifulsoup4
-tweepy
+beautifulsoup4==4.14.2
+tweepy==4.16.0
