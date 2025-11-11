@@ -1,0 +1,28 @@
+name: Plan Apple Update Notification
+run-name: Tf Planning Apple Update Notification against ${{ github.ref_name }}
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan-dev:
+    name: Plan Development
+    if: github.event.pull_request.base.ref == 'develop' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'develop')
+    uses: ./.github/workflows/plan.yaml
+    with:
+      environment: development
+
+  plan-prod:
+    name: Plan Production
+    if: github.event.pull_request.base.ref == 'main' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    uses: ./.github/workflows/plan.yaml
+    with:
+      environment: production

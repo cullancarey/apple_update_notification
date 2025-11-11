@@ -1,23 +1,46 @@
 ###########################################################
-###### APPLE UPDATE NOTIFICATION LAMBDA CW TRIGGER ########
+###### CLOUDWATCH EVENT (SCHEDULED TRIGGERS FOR LAMBDAS) ##
 ###########################################################
 
-resource "aws_cloudwatch_event_rule" "apple_web_scrape_lambda_rule" {
-  name                = "${local.web_scrape_lambda_name}_trigger"
-  schedule_expression = "rate(1 hour)"
-  description         = "Cloudwatch event rule to trigger the lambda function ${aws_lambda_function.apple_web_scrape_lambda.function_name}"
+# Extend the lambda_definitions in lambda_common.tf
+# Add this key for any lambda you want to schedule.
+# Example (inside locals in lambda_common.tf):
+# apple_web_scrape = {
+#   description      = "Scrapes Apple site and updates DynamoDB"
+#   dynamodb_actions = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+#   extra_ssm_access = false
+#   stream_access    = false
+#   schedule         = "rate(1 hour)"  # 👈 add this line
+# }
+
+locals {
+  scheduled_lambdas = {
+    for name, cfg in local.lambda_definitions : name => cfg
+    if lookup(cfg, "schedule", null) != null
+  }
 }
 
-resource "aws_cloudwatch_event_target" "apple_web_scrape_lambda" {
-  rule      = aws_cloudwatch_event_rule.apple_web_scrape_lambda_rule.name
-  target_id = "trigger_${local.web_scrape_lambda_name}_lambda"
-  arn       = aws_lambda_function.apple_web_scrape_lambda.arn
+# 1️⃣ CloudWatch rule (only for lambdas with a schedule)
+resource "aws_cloudwatch_event_rule" "lambda_schedules" {
+  for_each            = local.scheduled_lambdas
+  description         = "Scheduled rule to trigger ${each.key} lambda"
+  schedule_expression = each.value.schedule
 }
 
-resource "aws_lambda_permission" "apple_web_scrape_lambda_allow_cloudwatch" {
-  statement_id  = "AllowExecutionFromCloudWatch"
+# 2️⃣ Event target linking CloudWatch rule → Lambda
+resource "aws_cloudwatch_event_target" "lambda_targets" {
+  for_each  = local.scheduled_lambdas
+  rule      = aws_cloudwatch_event_rule.lambda_schedules[each.key].name
+  target_id = "trigger_${each.key}_lambda"
+  arn       = aws_lambda_function.lambda_functions[each.key].arn
+}
+
+# 3️⃣ Lambda permission so CloudWatch Events can invoke it
+resource "aws_lambda_permission" "allow_cloudwatch_invoke" {
+  for_each      = local.scheduled_lambdas
+  statement_id  = "AllowExecutionFromCloudWatch_${each.key}"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.apple_web_scrape_lambda.function_name
+  function_name = aws_lambda_function.lambda_functions[each.key].function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.apple_web_scrape_lambda_rule.arn
+  source_arn    = aws_cloudwatch_event_rule.lambda_schedules[each.key].arn
 }

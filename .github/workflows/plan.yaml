@@ -1,6 +1,12 @@
-name: 'Plan'
+name: Plan
 
-on: [pull_request]
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "The github environment to plan against."
 
 permissions:
   id-token: write # This is required for requesting the JWT
@@ -21,12 +27,14 @@ jobs:
         name: lambda_build
         path: apple_utils.zip
 
-  terraform-plan-dev:
-    needs: [build-lambda-package]
-    name: 'Dev - Plan Terraform'
-    if: github.event.pull_request.base.ref == 'develop'
+  terraform-plan:
+    name: Plan Terraform to ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    environment: development
+    needs: [build-lambda-package]
+    environment: ${{ inputs.environment }}
+
+    env:
+      DEPLOY_ENV: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref_name }}
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
@@ -44,22 +52,27 @@ jobs:
       with:
         path: ./terraform
 
-    # Configure AWS Creds DEV
-    - name: Configure AWS Credentials Dev
+    # Configure AWS Creds
+    - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
-        role-session-name: terraform-plan-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
+        role-session-name: terraform-deployment-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         aws-region: ${{ vars.REGION }}
 
     # Install the latest version of Terraform CLI
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
+    - name: Show deployment environment
+      run: |
+        echo "GitHub Environment: ${{ inputs.environment }}"
+        echo "Terraform Env (branch-based): ${DEPLOY_ENV}"
+
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       id: init
-      run: terraform init -backend-config=backend.develop.conf
+      run: terraform init -backend-config=backend.${DEPLOY_ENV}.conf
       continue-on-error: false
 
     # Checks that all Terraform configuration files adhere to a canonical format
@@ -73,65 +86,7 @@ jobs:
       run: terraform validate -no-color
       continue-on-error: false
 
-      # On push to "main", build or change infrastructure according to Terraform configuration files
+    # On push to "main" or "develop", run a plan to see infrastructure according to Terraform configuration files
     - name: Terraform Plan
-      id: apply
-      run: terraform plan -input=false -var-file="develop.tfvars"
-
-
-  terraform-plan-prod:
-    needs: [build-lambda-package]
-    name: 'Prod - Plan Terraform'
-    if: github.event.pull_request.base.ref == 'main'
-    runs-on: ubuntu-latest
-    environment: production
-
-    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./terraform
-
-    steps:
-    # Checkout the repository to the GitHub Actions runner
-    - name: Checkout
-      uses: actions/checkout@v5
-
-    - name: Download all workflow run artifacts
-      uses: actions/download-artifact@v6
-      with:
-        path: ./terraform
-
-    # Configure AWS Creds Prod
-    - name: Configure AWS Credentials Prod
-      uses: aws-actions/configure-aws-credentials@v5
-      with:
-        role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
-        role-session-name: terraform-plan-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
-        aws-region: ${{ vars.REGION }}
-
-    # Install the latest version of Terraform CLI
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-    - name: Terraform Init
-      id: init
-      run: terraform init -backend-config=backend.main.conf
-      continue-on-error: false
-
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      id: fmt
-      run: terraform fmt -check
-      continue-on-error: false
-
-    - name: Terraform Validate
-      id: validate
-      run: terraform validate -no-color
-      continue-on-error: false
-
-      # On push to "main", build or change infrastructure according to Terraform configuration files
-    - name: Terraform Plan
-      id: apply
-      run: terraform plan -input=false -var-file="main.tfvars"
+      id: plan
+      run: terraform plan -var-file=${DEPLOY_ENV}.tfvars
