@@ -2,9 +2,9 @@
 ###### CLOUDWATCH EVENT (SCHEDULED TRIGGERS FOR LAMBDAS) ##
 ###########################################################
 
-# Extend the lambda_definitions in lambda_common.tf
+# Extend the lambda_definitions in lambda.tf
 # Add this key for any lambda you want to schedule.
-# Example (inside locals in lambda_common.tf):
+# Example (inside locals in lambda.tf):
 # apple_web_scrape = {
 #   description      = "Scrapes Apple site and updates DynamoDB"
 #   dynamodb_actions = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
