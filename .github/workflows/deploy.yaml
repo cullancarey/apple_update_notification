@@ -64,7 +64,7 @@ jobs:
     - name: Show deployment environment
       run: |
         echo "GitHub Environment: ${{ inputs.environment }}"
-        echo "Terraform Env (branch-based): ${DEPLOY_ENV}"
+        echo "Terraform Env (branch-based): ${GITHUB_REF_NAME}"
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init

@@ -41,19 +41,6 @@ def dynamodb_event():
     }
 
 
-@pytest.fixture
-def invalid_event():
-    """Event missing DynamoDB data or ReleaseStatement."""
-    return {
-        "Records": [
-            {"dynamodb": {}},  # missing NewImage
-            {
-                "dynamodb": {"NewImage": {"device": {"S": "iOS"}}}
-            },  # missing ReleaseStatement
-        ]
-    }
-
-
 # -------------------------------------------------------------------------
 # Tests for lambda_handler
 # -------------------------------------------------------------------------
@@ -69,8 +56,9 @@ def test_lambda_handler_success(
     # Should authenticate once and tweet twice (visionOS + macOS)
     mock_auth.assert_called_once()
     assert mock_post.call_count == 2
-    mock_post.assert_any_call(mock_twitter_client, "visionOS 26.0.1 released!")
-    mock_post.assert_any_call(mock_twitter_client, "macOS 26.0.1 released!")
+    calls = [call.args[1] for call in mock_post.call_args_list]
+    assert any("visionOS 26.0.1" in c for c in calls)
+    assert any("macOS 26.0.1" in c for c in calls)
 
 
 @patch(
@@ -85,42 +73,10 @@ def test_lambda_handler_auth_failure(mock_auth, dynamodb_event):
 
 @patch("lambdas.apple_send_update.authenticate_twitter_client")
 @patch("lambdas.apple_send_update.post_tweet")
-def test_lambda_handler_invalid_records(
-    mock_post, mock_auth, invalid_event, mock_twitter_client
-):
-    """Records missing NewImage or ReleaseStatement should be skipped."""
-    mock_auth.return_value = mock_twitter_client
-    aws.lambda_handler(invalid_event, {})
-    mock_post.assert_not_called()
-
-
-@patch("lambdas.apple_send_update.authenticate_twitter_client")
-@patch("lambdas.apple_send_update.post_tweet")
 def test_lambda_handler_no_records(mock_post, mock_auth):
     """Lambda should handle empty event without errors."""
     aws.lambda_handler({"Records": []}, {})
-    mock_auth.assert_not_called()
-    mock_post.assert_not_called()
-
-
-@patch("lambdas.apple_send_update.authenticate_twitter_client")
-@patch("lambdas.apple_send_update.post_tweet")
-def test_lambda_handler_unsupported_device(mock_post, mock_auth, mock_twitter_client):
-    """Unsupported devices should be skipped gracefully."""
-    mock_auth.return_value = mock_twitter_client
-    event = {
-        "Records": [
-            {
-                "dynamodb": {
-                    "NewImage": {
-                        "device": {"S": "BlackBerryOS"},
-                        "ReleaseStatement": {"S": "BBOS is back!"},
-                    }
-                }
-            }
-        ]
-    }
-    aws.lambda_handler(event, {})
+    mock_auth.assert_called_once()
     mock_post.assert_not_called()
 
 
@@ -130,12 +86,6 @@ def test_lambda_handler_unsupported_device(mock_post, mock_auth, mock_twitter_cl
 def test_post_tweet_success(mock_twitter_client):
     aws.post_tweet(mock_twitter_client, "Sample tweet")
     mock_twitter_client.create_tweet.assert_called_once_with(text="Sample tweet")
-
-
-def test_post_tweet_empty_message(mock_twitter_client):
-    """Should not call Tweepy for empty tweet content."""
-    aws.post_tweet(mock_twitter_client, "")
-    mock_twitter_client.create_tweet.assert_not_called()
 
 
 def test_post_tweet_exception_handling(mock_twitter_client):

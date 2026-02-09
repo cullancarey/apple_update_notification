@@ -17,7 +17,6 @@ logger.setLevel(logging.INFO)
 # Constants
 # -------------------------------------------------------------------------
 PARAMETER_PREFIX = "apple_update_notification"
-DEVICE_LIST = ["iOS", "macOS", "watchOS", "tvOS", "visionOS"]
 
 # -------------------------------------------------------------------------
 # Global AWS Session / Config (improves Lambda cold-start performance)
@@ -28,9 +27,6 @@ session = boto3.session.Session()
 # Global clients reused across invocations
 ssm_client = session.client("ssm", config=boto_cfg)
 dynamodb_resource = session.resource("dynamodb", config=boto_cfg)
-
-# Cache Parameter Store lookups within a single invocation
-_param_cache = {}
 
 
 # -------------------------------------------------------------------------
@@ -68,61 +64,53 @@ def create_dynamodb_resource(region_name=None):
 # -------------------------------------------------------------------------
 # Parameter Store Interaction
 # -------------------------------------------------------------------------
-def get_param(param_name, region_name=None):
-    """
-    Retrieves a parameter value from AWS Parameter Store.
-    Caches the result per Lambda invocation to reduce latency.
-    """
-    if param_name in _param_cache:
-        return _param_cache[param_name]
+def load_twitter_secrets(region_name=None):
+    param_names = [
+        f"{PARAMETER_PREFIX}_api_key",
+        f"{PARAMETER_PREFIX}_secret_key",
+        f"{PARAMETER_PREFIX}_twitter_access_token",
+        f"{PARAMETER_PREFIX}_access_secret_token",
+    ]
 
-    logger.info(f"Retrieving parameter: {param_name}")
     client = create_ssm_client(region_name)
 
     try:
-        response = client.get_parameter(Name=param_name, WithDecryption=True)
-        value = response["Parameter"]["Value"]
-        _param_cache[param_name] = value
-        logger.info(f"Successfully retrieved parameter: {param_name}")
-        return value
+        response = client.get_parameters(
+            Names=param_names,
+            WithDecryption=True,
+        )
     except (ClientError, BotoCoreError) as e:
-        logger.error(f"Error retrieving parameter '{param_name}': {e}", exc_info=True)
-        raise ParameterRetrievalError(
-            f"Failed to retrieve parameter '{param_name}'"
-        ) from e
+        logger.error("Failed to load Twitter secrets", exc_info=True)
+        raise ParameterRetrievalError("Failed to load Twitter secrets") from e
+
+    values = {p["Name"]: p["Value"] for p in response.get("Parameters", [])}
+
+    # Optional: enforce contract loudly
+    missing = set(param_names) - values.keys()
+    if missing:
+        raise ParameterRetrievalError(f"Missing parameters: {missing}")
+
+    return values
 
 
 # -------------------------------------------------------------------------
 # DynamoDB Interaction
 # -------------------------------------------------------------------------
-def get_item(table, device_list=DEVICE_LIST):
+def get_device_item(table, device: str):
     """
-    Retrieves the latest releases for devices from DynamoDB.
-    Returns a dictionary of devices and their release data.
+    Retrieves the release data for a single device from DynamoDB.
+    Returns the item dict or None if not found.
     """
-    logger.info("Retrieving device release items from DynamoDB.")
-    releases = {device: None for device in device_list}
-    releases["release_statements"] = {device: None for device in device_list}
-
-    for device in device_list:
-        try:
-            response = table.get_item(Key={"device": device})
-            item = response.get("Item")
-            if item:
-                releases[device] = item.get("ReleaseVersion")
-                releases["release_statements"][device] = item.get("ReleaseStatement")
-                logger.info(f"Retrieved item for device '{device}'.")
-            else:
-                logger.warning(f"No entry found in DynamoDB for device '{device}'.")
-        except ClientError as err:
-            logger.error(
-                f"Error retrieving item for device '{device}': {err}", exc_info=True
-            )
-            raise DynamoDBItemNotFound(
-                f"Failed to retrieve item for device '{device}'"
-            ) from err
-
-    return releases
+    try:
+        response = table.get_item(Key={"device": device})
+        return response.get("Item")
+    except ClientError as err:
+        logger.error(
+            f"Error retrieving item for device '{device}': {err}", exc_info=True
+        )
+        raise DynamoDBItemNotFound(
+            f"Failed to retrieve item for device '{device}'"
+        ) from err
 
 
 # -------------------------------------------------------------------------
@@ -139,16 +127,14 @@ def authenticate_twitter_client(region_name=None):
     """
     logger.info("Authenticating Twitter client.")
 
+    secrets = load_twitter_secrets(region_name=region_name)
+
     try:
         twitter_client = tweepy.Client(
-            consumer_key=get_param(f"{PARAMETER_PREFIX}_api_key", region_name),
-            consumer_secret=get_param(f"{PARAMETER_PREFIX}_secret_key", region_name),
-            access_token=get_param(
-                f"{PARAMETER_PREFIX}_twitter_access_token", region_name
-            ),
-            access_token_secret=get_param(
-                f"{PARAMETER_PREFIX}_access_secret_token", region_name
-            ),
+            consumer_key=secrets[f"{PARAMETER_PREFIX}_api_key"],
+            consumer_secret=secrets[f"{PARAMETER_PREFIX}_secret_key"],
+            access_token=secrets[f"{PARAMETER_PREFIX}_twitter_access_token"],
+            access_token_secret=secrets[f"{PARAMETER_PREFIX}_access_secret_token"],
         )
         logger.info("Successfully authenticated Twitter client.")
         return twitter_client
@@ -168,8 +154,7 @@ def authenticate_twitter_client(region_name=None):
 __all__ = [
     "create_ssm_client",
     "create_dynamodb_resource",
-    "get_param",
-    "get_item",
+    "get_device_item",
     "authenticate_twitter_client",
     "ParameterRetrievalError",
     "DynamoDBItemNotFound",

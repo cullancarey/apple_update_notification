@@ -4,13 +4,18 @@ sys.path.append("/opt")
 
 import os
 import logging
-import time
 import urllib3
 import re
 
 from bs4 import BeautifulSoup
 from botocore.exceptions import ClientError
-from apple_utils import get_item, create_dynamodb_resource
+
+try:
+    # Lambda / layer import
+    from apple_utils import get_device_item, create_dynamodb_resource
+except ImportError:
+    # Local / test import
+    from .apple_utils import get_device_item, create_dynamodb_resource
 
 # Constants
 APPLE_RELEASE_URL = "https://support.apple.com/en-us/100100"
@@ -114,10 +119,8 @@ def get_latest_releases():
     if not release_versions:
         return None
 
-    timestamp = int(time.time())
     release_messages = {
-        device: f"{device} release available!\n{release_statements[device]}\n{timestamp}\n#{device} #apple"
-        for device in release_statements
+        device: f"{release_statements[device]}" for device in release_statements
     }
 
     releases_dict = {device: release_versions[device] for device in release_versions}
@@ -151,31 +154,31 @@ def update_dynamodb(table, device, release_version, release_statement):
         return True
 
 
-def compare_and_update_releases(latest_releases, dynamo_releases, table):
-    """Compare and update releases in DynamoDB if needed."""
-    updates_needed = {
-        device: latest_releases[device]
-        for device in DEVICE_LIST
-        if device in latest_releases
-        and (
-            device not in dynamo_releases
-            or latest_releases[device] != dynamo_releases.get(device)
-        )
-    }
+# def compare_and_update_releases(latest_releases, dynamo_releases, table):
+#     """Compare and update releases in DynamoDB if needed."""
+#     updates_needed = {
+#         device: latest_releases[device]
+#         for device in DEVICE_LIST
+#         if device in latest_releases
+#         and (
+#             device not in dynamo_releases
+#             or latest_releases[device] != dynamo_releases.get(device)
+#         )
+#     }
 
-    if not updates_needed:
-        logger.info("No updates available.")
-        return
+#     if not updates_needed:
+#         logger.info("No updates available.")
+#         return
 
-    for device in updates_needed:
-        update_dynamodb(
-            table=table,
-            device=device,
-            release_version=latest_releases[device],
-            release_statement=latest_releases["release_statements"][device],
-        )
+#     for device in updates_needed:
+#         update_dynamodb(
+#             table=table,
+#             device=device,
+#             release_version=latest_releases[device],
+#             release_statement=latest_releases["release_statements"][device],
+#         )
 
-    logger.info("Completed DynamoDB updates.")
+#     logger.info("Completed DynamoDB updates.")
 
 
 def lambda_handler(event, context):
@@ -195,11 +198,22 @@ def lambda_handler(event, context):
     dynamodb = create_dynamodb_resource()
     table = dynamodb.Table(dynamodb_table_name)
 
-    dynamo_releases = get_item(table=table, device_list=DEVICE_LIST)
-    if not dynamo_releases:
-        logger.warning("No existing data found in DynamoDB; populating fresh data.")
-        dynamo_releases = {}
-    logger.info(f"Latest releases fetched: {latest_releases}")
-    logger.info(f"Existing releases in DynamoDB: {dynamo_releases}")
+    for device, latest_version in latest_releases.items():
+        if device == "release_statements":
+            continue
 
-    compare_and_update_releases(latest_releases, dynamo_releases, table)
+        existing_item = get_device_item(table=table, device=device)
+        existing_version = (
+            existing_item.get("ReleaseVersion") if existing_item else None
+        )
+
+        if existing_version == latest_version:
+            logger.info(f"No update needed for {device}.")
+            continue
+
+        update_dynamodb(
+            table=table,
+            device=device,
+            release_version=latest_version,
+            release_statement=latest_releases["release_statements"][device],
+        )
