@@ -102,7 +102,7 @@ data "aws_iam_policy_document" "lambda_policies" {
     for_each = each.value.extra_ssm_access ? [1] : []
     content {
       sid     = "ParameterStoreAccess"
-      actions = ["ssm:GetParameter"]
+      actions = ["ssm:GetParameters"]
       resources = [
         "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_*"
       ]
