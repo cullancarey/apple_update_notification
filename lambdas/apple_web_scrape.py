@@ -154,33 +154,6 @@ def update_dynamodb(table, device, release_version, release_statement):
         return True
 
 
-# def compare_and_update_releases(latest_releases, dynamo_releases, table):
-#     """Compare and update releases in DynamoDB if needed."""
-#     updates_needed = {
-#         device: latest_releases[device]
-#         for device in DEVICE_LIST
-#         if device in latest_releases
-#         and (
-#             device not in dynamo_releases
-#             or latest_releases[device] != dynamo_releases.get(device)
-#         )
-#     }
-
-#     if not updates_needed:
-#         logger.info("No updates available.")
-#         return
-
-#     for device in updates_needed:
-#         update_dynamodb(
-#             table=table,
-#             device=device,
-#             release_version=latest_releases[device],
-#             release_statement=latest_releases["release_statements"][device],
-#         )
-
-#     logger.info("Completed DynamoDB updates.")
-
-
 def lambda_handler(event, context):
     """AWS Lambda entry-point function."""
     dynamodb_table_name = os.getenv(DYNAMODB_TABLE_ENV_VAR)
