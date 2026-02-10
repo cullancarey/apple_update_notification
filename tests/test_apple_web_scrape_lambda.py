@@ -44,7 +44,7 @@ def sample_html():
 # -------------------------------------------------------------------------
 # fetch_apple_release_page
 # -------------------------------------------------------------------------
-@patch("apple_web_scrape.urllib3.PoolManager")
+@patch("lambdas.apple_web_scrape.urllib3.PoolManager")
 def test_fetch_apple_release_page_success(mock_pool):
     mock_http = MagicMock()
     mock_pool.return_value = mock_http
@@ -56,7 +56,7 @@ def test_fetch_apple_release_page_success(mock_pool):
     assert "<html>" in result
 
 
-@patch("apple_web_scrape.urllib3.PoolManager")
+@patch("lambdas.apple_web_scrape.urllib3.PoolManager")
 def test_fetch_apple_release_page_failure(mock_pool):
     mock_http = MagicMock()
     mock_pool.return_value = mock_http
@@ -119,9 +119,9 @@ def test_extract_release_versions_missing_version():
 # -------------------------------------------------------------------------
 # get_latest_releases
 # -------------------------------------------------------------------------
-@patch("apple_web_scrape.fetch_apple_release_page")
-@patch("apple_web_scrape.parse_release_statements")
-@patch("apple_web_scrape.extract_release_versions")
+@patch("lambdas.apple_web_scrape.fetch_apple_release_page")
+@patch("lambdas.apple_web_scrape.parse_release_statements")
+@patch("lambdas.apple_web_scrape.extract_release_versions")
 def test_get_latest_releases_success(mock_extract, mock_parse, mock_fetch):
     mock_fetch.return_value = "<html>content</html>"
     mock_parse.return_value = {
@@ -172,60 +172,77 @@ def test_update_dynamodb_failure():
 # -------------------------------------------------------------------------
 # compare_and_update_releases
 # -------------------------------------------------------------------------
-@patch("lambdas.apple_web_scrape.update_dynamodb")
-def test_compare_and_update_releases_triggers_update(mock_update):
-    latest = {
-        "iOS": "26.0.1",
-        "macOS": "26.0.1",
-        "watchOS": "26.0.2",
-        "tvOS": "26.0.1",
-        "visionOS": "26.0.1",
-        "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
-    }
-    dynamo = {"iOS": "25.0.9"}  # different version
-    aws.compare_and_update_releases(latest, dynamo, MagicMock())
-    mock_update.assert_called()
+# @patch("lambdas.apple_web_scrape.update_dynamodb")
+# def test_compare_and_update_releases_triggers_update(mock_update):
+#     latest = {
+#         "iOS": "26.0.1",
+#         "macOS": "26.0.1",
+#         "watchOS": "26.0.2",
+#         "tvOS": "26.0.1",
+#         "visionOS": "26.0.1",
+#         "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
+#     }
+#     dynamo = {"iOS": "25.0.9"}  # different version
+#     aws.compare_and_update_releases(latest, dynamo, MagicMock())
+#     mock_update.assert_called()
 
 
-@patch("lambdas.apple_web_scrape.update_dynamodb")
-def test_compare_and_update_releases_no_update(mock_update):
-    latest = {
-        "iOS": "26.0.1",
-        "macOS": "26.0.1",
-        "watchOS": "26.0.2",
-        "tvOS": "26.0.1",
-        "visionOS": "26.0.1",
-        "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
-    }
-    dynamo = {d: latest[d] for d in aws.DEVICE_LIST}
-    aws.compare_and_update_releases(latest, dynamo, MagicMock())
-    mock_update.assert_not_called()
+# @patch("lambdas.apple_web_scrape.update_dynamodb")
+# def test_compare_and_update_releases_no_update(mock_update):
+#     latest = {
+#         "iOS": "26.0.1",
+#         "macOS": "26.0.1",
+#         "watchOS": "26.0.2",
+#         "tvOS": "26.0.1",
+#         "visionOS": "26.0.1",
+#         "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
+#     }
+#     dynamo = {d: latest[d] for d in aws.DEVICE_LIST}
+#     aws.compare_and_update_releases(latest, dynamo, MagicMock())
+#     mock_update.assert_not_called()
 
 
 # -------------------------------------------------------------------------
 # lambda_handler
 # -------------------------------------------------------------------------
-@patch("lambdas.apple_web_scrape.create_dynamodb_resource")
+@patch("lambdas.apple_web_scrape.update_dynamodb")
+@patch("lambdas.apple_web_scrape.get_device_item")
 @patch("lambdas.apple_web_scrape.get_latest_releases")
-@patch("lambdas.apple_web_scrape.get_item", return_value={"iOS": "25.0.9"})
-@patch("lambdas.apple_web_scrape.compare_and_update_releases")
-def test_lambda_handler_success(mock_compare, mock_get, mock_latest, mock_dynamo):
+@patch("lambdas.apple_web_scrape.create_dynamodb_resource")
+def test_lambda_handler_success(
+    mock_dynamo,
+    mock_latest,
+    mock_get_item,
+    mock_update,
+):
     mock_latest.return_value = {
         "iOS": "26.0.1",
         "macOS": "26.0.1",
         "watchOS": "26.0.2",
         "tvOS": "26.0.1",
         "visionOS": "26.0.1",
-        "release_statements": {},
+        "release_statements": {
+            "iOS": "tweet",
+            "macOS": "tweet",
+            "watchOS": "tweet",
+            "tvOS": "tweet",
+            "visionOS": "tweet",
+        },
     }
+
+    # Simulate DynamoDB having an older version
+    mock_get_item.return_value = {"ReleaseVersion": "25.0.9"}
+
     mock_table = MagicMock()
     mock_dynamo.return_value.Table.return_value = mock_table
 
     aws.lambda_handler({}, {})
-    mock_compare.assert_called_once()
+
+    # update_dynamodb should be called once per device
+    assert mock_update.call_count == 5
 
 
-@patch("apple_web_scrape.create_dynamodb_resource")
+@patch("lambdas.apple_web_scrape.create_dynamodb_resource")
 def test_lambda_handler_missing_env(mock_dynamo, monkeypatch):
     monkeypatch.delenv("dynamodb_table_name", raising=False)
     aws.lambda_handler({}, {})

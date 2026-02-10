@@ -8,12 +8,10 @@ from typing import Any, Dict
 # Add the Lambda layer path for dependencies (e.g., apple_utils, tweepy, boto3)
 sys.path.append("/opt")
 
-from apple_utils import authenticate_twitter_client
-
-# -------------------------------------------------------------------------
-# Constants
-# -------------------------------------------------------------------------
-SUPPORTED_DEVICES = ["iOS", "macOS", "watchOS", "tvOS", "visionOS"]
+try:
+    from apple_utils import authenticate_twitter_client
+except ImportError:
+    from .apple_utils import authenticate_twitter_client
 
 # -------------------------------------------------------------------------
 # Logging Configuration
@@ -31,10 +29,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> None:
     Invoked automatically by DynamoDB Streams → Lambda event mapping.
     """
 
-    if not event.get("Records"):
-        logger.info("No records received in event; nothing to process.")
-        return
-
     # Authenticate Twitter client once per invocation (avoid per-record overhead)
     try:
         twitter_client = authenticate_twitter_client()
@@ -46,21 +40,16 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> None:
     for record in event["Records"]:
         try:
             dynamodb_data = record.get("dynamodb", {})
-            if "NewImage" not in dynamodb_data:
-                logger.info("Skipping record without 'NewImage'.")
+            if record.get("eventName") != "MODIFY":
                 continue
 
             new_image = dynamodb_data["NewImage"]
             device_name = new_image.get("device", {}).get("S")
             release_statement = new_image.get("ReleaseStatement", {}).get("S")
-
             if not release_statement:
-                logger.info("No 'ReleaseStatement' found; skipping record.")
-                continue
-
-            # Skip non-Apple software entries (defensive filter)
-            if device_name and device_name not in SUPPORTED_DEVICES:
-                logger.info(f"Skipping unsupported device type: {device_name}")
+                logger.warning(
+                    f"Missing ReleaseStatement for {device_name}, skipping tweet."
+                )
                 continue
 
             logger.info(
@@ -83,9 +72,6 @@ def post_tweet(twitter_client: Any, tweet_content: str) -> None:
     Posts a tweet using the authenticated Tweepy client.
     Wraps all exceptions and logs structured responses.
     """
-    if not tweet_content:
-        logger.warning("Empty tweet content received; skipping.")
-        return
 
     try:
         logger.info(f"Posting tweet: {tweet_content}")
@@ -104,14 +90,14 @@ def format_tweet(device: str, release: str) -> str:
         "New update rolling out now.",
         "Heads up — new release alert!",
         "Apple’s latest update is here.",
-        "Fresh off Cupertino’s servers:"
+        "Fresh off Cupertino’s servers:",
     ]
     hashtags = {
         "iOS": "#iOS #Apple",
         "macOS": "#macOS #Apple",
         "watchOS": "#watchOS #AppleWatch",
         "tvOS": "#tvOS #AppleTV",
-        "visionOS": "#visionOS #AppleVisionPro"
+        "visionOS": "#visionOS #AppleVisionPro",
     }
 
     emoji = random.choice(emojis)

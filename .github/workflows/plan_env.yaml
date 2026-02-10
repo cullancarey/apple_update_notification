@@ -7,6 +7,11 @@ on:
       - main
       - develop
   workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "The github environment to plan against."
 
 permissions:
   id-token: write
@@ -15,14 +20,24 @@ permissions:
 jobs:
   plan-dev:
     name: Plan Development
-    if: github.event.pull_request.base.ref == 'develop' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'develop')
+    if: >
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.base.ref == 'develop')
+      ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref_name == 'develop')
     uses: ./.github/workflows/plan.yaml
     with:
       environment: development
 
   plan-prod:
     name: Plan Production
-    if: github.event.pull_request.base.ref == 'main' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    if: >
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.base.ref == 'main')
+      ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref_name == 'main')
     uses: ./.github/workflows/plan.yaml
     with:
       environment: production
