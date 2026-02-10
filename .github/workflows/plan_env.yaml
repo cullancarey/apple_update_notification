@@ -7,6 +7,11 @@ on:
       - main
       - develop
   workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "The github environment to plan against."
 
 permissions:
   id-token: write
