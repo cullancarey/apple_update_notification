@@ -10,5 +10,6 @@ locals {
     Project     = "apple_update_notification"
     Environment = var.environment
     GitHubRepo  = "github.com/cullancarey/apple_update_notification"
+    Terraform   = "true"
   }
 }
