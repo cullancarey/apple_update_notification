@@ -17,15 +17,17 @@ jobs:
     name: Build Lambda Deployment Package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
-    - name: Upload Lambda Deployment Package
-      uses: actions/upload-artifact@v5
+    - name: Upload Lambda Deployment Packages
+      uses: actions/upload-artifact@v7
       with:
         name: lambda_build
-        path: apple_utils.zip
+        path: |
+          apple_web_scrape.zip
+          apple_send_update.zip
 
   terraform-deploy:
     name: Deploy Terraform to ${{ inputs.environment }}
@@ -42,24 +44,45 @@ jobs:
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download all workflow run artifacts
       uses: actions/download-artifact@v6
       with:
         path: ./terraform
 
+    - name: Move Lambda packages to terraform directory
+      run: |
+        echo "Checking artifact structure:"
+        ls -la .
+        echo ""
+        if [ -d "lambda_build" ]; then
+          echo "Found lambda_build directory, listing contents:"
+          ls -la lambda_build/
+          echo "Moving .zip files..."
+          mv lambda_build/*.zip . 2>/dev/null || {
+            echo "No .zip files in lambda_build root, searching subdirectories..."
+            find lambda_build -name '*.zip' -exec mv {} . \;
+          }
+        else
+          echo "No lambda_build directory found, checking current directory:"
+          ls -la *.zip 2>/dev/null || echo "No .zip files found"
+        fi
+        echo ""
+        echo "Final contents:"
+        ls -lh *.zip
+
     # Configure AWS Creds
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v5
+      uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
+        role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/GitHubActionsTerraformDeploymentRole-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         role-session-name: terraform-deployment-${{ vars.REGION }}-${{ vars.ACCOUNT_ID }}
         aws-region: ${{ vars.REGION }}
 
     # Install the latest version of Terraform CLI
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
+      uses: hashicorp/setup-terraform@v4
 
     - name: Show deployment environment
       run: |

@@ -122,21 +122,17 @@ resource "aws_iam_role_policy" "lambda_policies" {
 ########## PACKAGE + DEPLOY LAMBDAS #########
 #############################################
 
-# Package each lambda from source file → zip
-data "archive_file" "lambda_packages" {
-  for_each    = local.lambda_definitions
-  type        = "zip"
-  source_file = "../lambdas/${each.key}.py"
-  output_path = "${each.key}.zip"
-}
+# NOTE: Lambda packages are built by GitHub Actions (create_lambda_package.sh)
+# and downloaded as artifacts into the terraform/ directory before this runs.
+# Each package contains: handler.py + apple_utils.py + dependencies
 
-# Upload each zip to S3
+# Upload each pre-built zip to S3
 resource "aws_s3_object" "lambda_objects" {
   for_each    = local.lambda_definitions
   bucket      = aws_s3_bucket.apple_update_notification_bucket.id
   key         = "${each.key}.zip"
-  source      = data.archive_file.lambda_packages[each.key].output_path
-  source_hash = data.archive_file.lambda_packages[each.key].output_base64sha512
+  source      = "${each.key}.zip"
+  source_hash = filemd5("${each.key}.zip")
 }
 
 # Deploy each Lambda
@@ -150,8 +146,7 @@ resource "aws_lambda_function" "lambda_functions" {
   handler          = "${each.key}.lambda_handler"
   runtime          = local.python_version
   timeout          = 90
-  source_code_hash = data.archive_file.lambda_packages[each.key].output_base64sha512
-  layers           = [aws_lambda_layer_version.lambda_utils_layer.arn]
+  source_code_hash = filemd5("${each.key}.zip")
 
   environment {
     variables = merge(

@@ -1,17 +1,13 @@
 """AWS Lambda function to tweet Apple release updates based on DynamoDB Streams."""
 
-import sys
 import logging
 import random
 from typing import Any, Dict
 
-# Add the Lambda layer path for dependencies (e.g., apple_utils, tweepy, boto3)
-sys.path.append("/opt")
-
 try:
-    from apple_utils import authenticate_twitter_client
-except ImportError:
     from .apple_utils import authenticate_twitter_client
+except ImportError:
+    from apple_utils import authenticate_twitter_client
 
 # -------------------------------------------------------------------------
 # Logging Configuration
