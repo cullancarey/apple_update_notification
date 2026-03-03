@@ -54,17 +54,23 @@ jobs:
     - name: Move Lambda packages to terraform directory
       run: |
         echo "Checking artifact structure:"
-        ls -la ./terraform/
-        ls -la ./terraform/lambda_build/ || echo "lambda_build directory not found"
-        echo "Moving Lambda packages..."
-        if [ -d "./terraform/lambda_build" ]; then
-          mv ./terraform/lambda_build/*.zip ./terraform/ 2>/dev/null || {
-            echo "No .zip files in lambda_build, checking for nested structure..."
-            find ./terraform/lambda_build -name '*.zip' -exec mv {} ./terraform/ \;
+        ls -la .
+        echo ""
+        if [ -d "lambda_build" ]; then
+          echo "Found lambda_build directory, listing contents:"
+          ls -la lambda_build/
+          echo "Moving .zip files..."
+          mv lambda_build/*.zip . 2>/dev/null || {
+            echo "No .zip files in lambda_build root, searching subdirectories..."
+            find lambda_build -name '*.zip' -exec mv {} . \;
           }
+        else
+          echo "No lambda_build directory found, checking current directory:"
+          ls -la *.zip 2>/dev/null || echo "No .zip files found"
         fi
-        echo "Final terraform directory contents:"
-        ls -lh ./terraform/*.zip
+        echo ""
+        echo "Final contents:"
+        ls -lh *.zip
 
     # Configure AWS Creds
     - name: Configure AWS Credentials
