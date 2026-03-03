@@ -21,11 +21,13 @@ jobs:
     - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
-    - name: Upload Lambda Deployment Package
+    - name: Upload Lambda Deployment Packages
       uses: actions/upload-artifact@v7
       with:
         name: lambda_build
-        path: apple_utils.zip
+        path: |
+          apple_web_scrape.zip
+          apple_send_update.zip
 
   terraform-deploy:
     name: Deploy Terraform to ${{ inputs.environment }}
@@ -48,6 +50,11 @@ jobs:
       uses: actions/download-artifact@v6
       with:
         path: ./terraform
+
+    - name: Move Lambda packages to terraform directory
+      run: |
+        mv ./terraform/lambda_build/*.zip ./terraform/
+        ls -lh ./terraform/*.zip
 
     # Configure AWS Creds
     - name: Configure AWS Credentials

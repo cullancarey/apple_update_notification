@@ -1,7 +1,3 @@
-import sys
-
-sys.path.append("/opt")
-
 import os
 import logging
 import urllib3
@@ -11,11 +7,9 @@ from bs4 import BeautifulSoup
 from botocore.exceptions import ClientError
 
 try:
-    # Lambda / layer import
-    from apple_utils import get_device_item, create_dynamodb_resource
-except ImportError:
-    # Local / test import
     from .apple_utils import get_device_item, create_dynamodb_resource
+except ImportError:
+    from apple_utils import get_device_item, create_dynamodb_resource
 
 # Constants
 APPLE_RELEASE_URL = "https://support.apple.com/en-us/100100"
