@@ -4,223 +4,77 @@
 
 # Apple Update Notification
 
-Automated system that:
+This project automatically tracks Apple OS release changes and publishes updates to Twitter/X.
 
-1. Scrapes Apple's public "Latest software releases" support page.
-2. Stores the most recently observed OS versions (iOS, macOS, watchOS, tvOS, visionOS) in DynamoDB.
-3. Publishes a tweet whenever a new release version is detected (via DynamoDB Streams → Lambda).
+Current flow:
 
-Infrastructure is provisioned with Terraform on AWS. Two core Lambda functions power the flow:
+1. `apple_web_scrape` runs on an EventBridge schedule and scrapes Apple's release page.
+2. Release data is written to DynamoDB (`apple_os_updates_<environment>`).
+3. DynamoDB stream changes trigger `apple_send_update`.
+4. `apple_send_update` formats and posts updates with Tweepy.
 
-- `apple_web_scrape` – Periodically scrapes and updates DynamoDB if versions change.
-- `apple_send_update` – Triggered by DynamoDB Stream events to tweet newly detected releases.
+## Architecture Snapshot
 
----
-
-## High-Level Architecture
-
-```
-AWS Event / (Scheduled Trigger e.g. EventBridge) --> apple_web_scrape (Lambda)
-	|  (GET https://support.apple.com/en-us/100100)
-	v
-Amazon DynamoDB (apple_os_updates_<env>) -- Stream --> apple_send_update (Lambda) -- Tweepy --> Twitter
+```text
+EventBridge schedule -> Lambda (apple_web_scrape)
+					 -> DynamoDB table + stream
+					 -> Lambda (apple_send_update)
+					 -> Twitter/X API
 ```
 
-Key Components:
+Infrastructure is managed with Terraform modules in `terraform/modules`.
+Python dependencies are managed with `uv` (`pyproject.toml` + `uv.lock`).
 
-- **DynamoDB Table**: `apple_os_updates_<environment>`; partition key: `device`. Stream enabled (NEW_IMAGE) for change detection.
-- **Lambda Packaging**: each Lambda zip contains handler + `apple_utils.py` + runtime dependencies.
-- **Parameter Store (SSM)**: Holds Twitter API credentials (see below).
-- **IAM Roles/Policies**: Scoped to least privilege for CloudWatch Logs, DynamoDB access, S3 artifact retrieval, and SSM parameter reads.
-- **S3 Bucket**: Stores zipped Lambda deployment packages and layer bundle.
+## Repository Map
 
----
+- `.github/` - GitHub Actions and workflow docs.
+- `lambdas/` - Lambda handlers and shared runtime utilities.
+- `terraform/` - Root Terraform stack and module composition.
+- `tests/` - Pytest tests for Lambda behavior.
 
-## Repository Layout
+Each directory now has its own README with details about ownership and usage.
 
-```
-├─ lambdas/
-│  ├─ apple_web_scrape.py      # Scrapes Apple site, updates DynamoDB
-│  ├─ apple_send_update.py     # Processes DynamoDB stream, posts tweets
-│  ├─ apple_utils.py           # Shared utilities (DynamoDB, SSM, Tweepy auth)
-│  ├─ apple_subscription.py    # (Placeholder)
-│  ├─ apple_thank_you.py       # (Placeholder)
-├─ terraform/                  # Infrastructure as code
-│  ├─ *.tf                     # Providers, Lambdas, DynamoDB, IAM, etc.
-├─ tests/                      # Pytest unit tests for both Lambdas
-├─ create_lambda_package.sh    # Builds Lambda deployment zips
-├─ pyproject.toml              # Project dependencies managed by uv
-└─ README.md
+## Local Commands
+
+Sync dependencies:
+
+```bash
+uv sync --group dev
 ```
 
----
-
-## Lambda Functions
-
-### apple_web_scrape
-Responsibilities:
-- Fetches `https://support.apple.com/en-us/100100`.
-- Parses "The latest version of <OS> is X.Y.Z" style statements using BeautifulSoup & regex.
-- Builds a structured dictionary: latest version per OS + tweet-ready release statements.
-- Compares against existing DynamoDB item set; updates only changed entries (one item per device key: `device`).
-
-Environment Variables:
-- `dynamodb_table_name` – Name of DynamoDB table (injected by Terraform).
-
-### apple_send_update
-Responsibilities:
-- Triggered by DynamoDB Stream (NEW_IMAGE) events.
-- Filters for supported devices: iOS, macOS, watchOS, tvOS, visionOS.
-- Extracts `ReleaseStatement` and posts a tweet via Tweepy.
-
-Secrets (retrieved at runtime from SSM Parameter Store):
-- `apple_update_notification_api_key`
-- `apple_update_notification_secret_key`
-- `apple_update_notification_twitter_access_token`
-- `apple_update_notification_access_secret_token`
-
-These parameter names are hard-coded with a `apple_update_notification` prefix in `apple_utils.py`.
-
----
-
-## Twitter Integration
-
-The Tweepy client is constructed per invocation (once) using credentials from decrypted SSM parameters. Make sure you have stored the above parameters (SecureString) in the same AWS region as the Lambda functions. Minimum required IAM action: `ssm:GetParameter` for each parameter ARN.
-
----
-
-## Building Lambda Packages
-
-Each package contains:
-- Lambda handler (`apple_web_scrape.py` or `apple_send_update.py`)
-- Shared utility module (`apple_utils.py`)
-- Runtime dependencies exported from `pyproject.toml`
-
-Use the helper script:
+Build Lambda packages:
 
 ```bash
 ./create_lambda_package.sh
 ```
 
-This produces `apple_web_scrape.zip` and `apple_send_update.zip` at the repository root.
+Run tests:
 
----
-
-## Terraform Deployment
-
-Variables (see `terraform/variables.tf`):
-
-| Name | Description | Example |
-|------|-------------|---------|
-| `environment` | Deployment environment identifier | `develop`, `main` |
-| `twitter_username` | Tag / identification only (not required for auth) | `my_twitter_handle` |
-
-Core resources provisioned:
-- DynamoDB table (with stream).
-- Two Lambda functions + IAM roles & policies.
-- S3 bucket for artifacts & (optionally) static site / backups.
-
-Backend configuration is split via `backend.main.conf` / `backend.develop.conf` to support multiple workspaces/environments.
-
-### Typical Workflow
 ```bash
-cd terraform
-# (Optionally) select or create a workspace: terraform workspace select develop || terraform workspace new develop
-terraform init -backend-config=backend.develop.conf
-terraform plan -var="environment=develop" -var="twitter_username=<your_handle>"
-terraform apply -var="environment=develop" -var="twitter_username=<your_handle>" -auto-approve
+uv run pytest -v
 ```
 
-Assumptions:
-- You have pre-built Lambda zip artifacts via `create_lambda_package.sh`.
-- SSM parameters for Twitter credentials already exist.
-- AWS credentials & default region (`us-east-2` primary) are configured locally.
+Validate Terraform:
 
----
-
-## Local Development & Testing
-
-Install dependencies with uv:
 ```bash
-uv sync --group dev
+terraform -chdir=terraform validate -no-color
 ```
 
-Run tests locally from /lambdas directory:
-```bash
-python -m pytest -v ../tests
-```
+## Deployment Model
 
-The tests mock external services (HTTP, SSM, Twitter, DynamoDB) to enable deterministic fast feedback.
+- `develop` branch deploys to development account (`693590665244`).
+- `main` branch deploys to production account (`651295191577`).
+- Terraform enforces account/environment guardrails with `allowed_account_ids` and validated environment values.
 
----
+## Notes
 
-## Adding New Logic
-
-1. Add or modify Lambda code under `lambdas/`.
-2. Rebuild deployment packages (`create_lambda_package.sh`) and re-apply Terraform.
-3. Add / update unit tests in `tests/`.
-4. Run `pytest` before committing.
-
----
-
-## Operational Considerations
-
-| Concern | Approach |
-|---------|----------|
-| Scheduling scrapes | Use EventBridge rule (not shown yet) to invoke `apple_web_scrape` periodically (e.g., every 15 min). |
-| Idempotency | DynamoDB update only when versions differ; stream emits events only for changes. |
-| Rate limits | Minimal HTTP calls; single page fetch per schedule. Twitter posting only on version changes. |
-| Error handling | Extensive logging + guarded exception handling per record. Failed tweets won't halt entire batch. |
-| Extensibility | Add more OS/device keys or downstream notifiers (email, SNS) by attaching new stream processors. |
-
----
-
-## Environment & Parameters Summary
-
-Environment Variables (Lambda):
-- `dynamodb_table_name` (web scrape lambda)
-- `environment` (tagging/metadata variable)
-
-SSM Secure Parameters (name → purpose):
-- `apple_update_notification_api_key` – Twitter API key.
-- `apple_update_notification_secret_key` – Twitter API secret.
-- `apple_update_notification_twitter_access_token` – OAuth access token.
-- `apple_update_notification_access_secret_token` – OAuth access secret.
-
-All must be in the same region as the Lambda functions (primary: `us-east-2`).
-
----
-
-## Troubleshooting
-
-| Issue | Likely Cause | Fix |
-|-------|--------------|-----|
-| No tweets posted | Missing or invalid SSM parameters | Verify parameter names & IAM `ssm:GetParameter` permissions. |
-| Lambda import errors | Deployment zip outdated | Re-run `create_lambda_package.sh` & redeploy Terraform. |
-| DynamoDB updates never trigger | Scheduler not configured | Add EventBridge rule to invoke `apple_web_scrape`. |
-| Parse failures / Missing devices | Apple page markup changed | Update CSS selectors & regex in `apple_web_scrape.parse_release_statements`. |
-
----
-
-## Security Notes
-- Store Twitter credentials only in SSM (SecureString); never commit secrets.
-- Principle of least privilege for IAM policies (already scoped per service).
-- Consider CloudWatch alarms on Lambda errors and DynamoDB throttling.
-
----
-
-## Future Enhancements
-- Public subscription API + email/webhook notifications.
-- CloudFront + static site for status dashboard.
-- Additional social platforms or Mastodon integration.
-- Version diff summaries or CVE link enrichment.
-
----
+- Lambda artifacts are uploaded as zipped packages (`apple_web_scrape.zip`, `apple_send_update.zip`).
+- Artifact bucket has versioning enabled plus lifecycle expiration for current and noncurrent objects after 60 days.
+- CloudWatch log retention is environment-aware (development: 180 days, production: 365 days).
 
 ## License
-See `LICENSE` for details.
 
----
+See `LICENSE`.
 
 ## Quick Reference Commands
 ```bash

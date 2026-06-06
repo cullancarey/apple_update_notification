@@ -1,28 +1,22 @@
-provider "aws" {
-  region = "us-east-2"
-  default_tags {
-    tags = local.default_tags
-  }
-}
-
 terraform {
+  required_version = ">= 1.8.0, < 2.0.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 6.18, < 7.0"
+    }
+  }
+
   backend "s3" {
   }
 }
 
+provider "aws" {
+  region              = var.aws_region
+  allowed_account_ids = [local.expected_account_ids[var.environment]]
 
-# provider "aws" {
-#   alias  = "cloudfront-certificate"
-#   region = "us-east-1"
-#   default_tags {
-#     tags = local.default_tags
-#   }
-# }
-
-# provider "aws" {
-#   alias  = "backup_sign_up_bucket_region"
-#   region = "us-east-1"
-#   default_tags {
-#     tags = local.default_tags
-#   }
-# }
+  default_tags {
+    tags = local.default_tags
+  }
+}

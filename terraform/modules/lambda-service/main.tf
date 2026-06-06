@@ -1,19 +1,42 @@
-#############################################
-############## SHARED LOCALS ################
-#############################################
+variable "environment" {
+  type = string
+}
+
+variable "account_id" {
+  type = string
+}
+
+variable "region" {
+  type = string
+}
+
+variable "python_version" {
+  type = string
+}
+
+variable "artifact_bucket_id" {
+  type = string
+}
+
+variable "dynamodb_table_name" {
+  type = string
+}
+
+variable "dynamodb_table_arn" {
+  type = string
+}
+
+variable "dynamodb_table_stream_arn" {
+  type = string
+}
 
 locals {
-  # region/account_id defined elsewhere
-  common_log_actions = [
-    "logs:CreateLogGroup",
-    "logs:CreateLogStream",
-    "logs:PutLogEvents"
-  ]
+  name_prefix = "apple-${var.environment}"
 
-  common_s3_actions = [
-    "s3:GetObject",
-    "s3:ListBucket"
-  ]
+  schedule_by_env = {
+    development = "rate(15 minutes)"
+    production  = "rate(1 hour)"
+  }
 
   lambda_definitions = {
     apple_web_scrape = {
@@ -21,7 +44,7 @@ locals {
       dynamodb_actions = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
       extra_ssm_access = false
       stream_access    = false
-      schedule         = var.environment == "develop" ? "rate(15 minutes)" : "rate(1 hour)"
+      schedule         = local.schedule_by_env[var.environment]
     }
 
     apple_send_update = {
@@ -36,26 +59,24 @@ locals {
       stream_access    = true
     }
   }
-}
 
-#############################################
-############### TRUST POLICY ################
-#############################################
+  scheduled_lambdas = {
+    for name, cfg in local.lambda_definitions : name => cfg
+    if lookup(cfg, "schedule", null) != null
+  }
+}
 
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
+
     principals {
       type        = "Service"
       identifiers = ["lambda.amazonaws.com"]
     }
   }
 }
-
-#############################################
-########## DYNAMIC IAM ROLE SETUP ###########
-#############################################
 
 resource "aws_iam_role" "lambda_roles" {
   for_each           = local.lambda_definitions
@@ -67,44 +88,34 @@ resource "aws_iam_role" "lambda_roles" {
 data "aws_iam_policy_document" "lambda_policies" {
   for_each = local.lambda_definitions
 
-  # CloudWatch Logging
   statement {
-    sid       = "CloudWatchLogging"
-    actions   = local.common_log_actions
-    resources = ["arn:aws:logs:${local.region}:${local.account_id}:*"]
+    sid = "CloudWatchLogging"
+
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+
+    resources = ["arn:aws:logs:${var.region}:${var.account_id}:*"]
     effect    = "Allow"
   }
 
-  # S3 Bucket Access
   statement {
-    sid     = "S3Access"
-    actions = local.common_s3_actions
-    resources = [
-      aws_s3_bucket.apple_update_notification_bucket.arn,
-      "${aws_s3_bucket.apple_update_notification_bucket.arn}/*"
-    ]
-    effect = "Allow"
+    sid       = "DynamoDBAccess"
+    actions   = each.value.dynamodb_actions
+    resources = concat([var.dynamodb_table_arn], each.value.stream_access ? [var.dynamodb_table_stream_arn] : [])
+    effect    = "Allow"
   }
 
-  # DynamoDB Access
-  statement {
-    sid     = "DynamoDBAccess"
-    actions = each.value.dynamodb_actions
-    resources = concat(
-      [aws_dynamodb_table.apple_os_updates_table.arn],
-      each.value.stream_access ? [aws_dynamodb_table.apple_os_updates_table.stream_arn] : []
-    )
-    effect = "Allow"
-  }
-
-  # SSM Access (conditionally for send_update)
   dynamic "statement" {
     for_each = each.value.extra_ssm_access ? [1] : []
+
     content {
       sid     = "ParameterStoreAccess"
       actions = ["ssm:GetParameters"]
       resources = [
-        "arn:aws:ssm:${local.region}:${local.account_id}:parameter/apple_update_notification_*"
+        "arn:aws:ssm:${var.region}:${var.account_id}:parameter/apple_update_notification_*"
       ]
       effect = "Allow"
     }
@@ -117,34 +128,23 @@ resource "aws_iam_role_policy" "lambda_policies" {
   policy   = data.aws_iam_policy_document.lambda_policies[each.key].json
 }
 
-
-#############################################
-########## PACKAGE + DEPLOY LAMBDAS #########
-#############################################
-
-# NOTE: Lambda packages are built by GitHub Actions (create_lambda_package.sh)
-# and downloaded as artifacts into the terraform/ directory before this runs.
-# Each package contains: handler.py + apple_utils.py + dependencies
-
-# Upload each pre-built zip to S3
 resource "aws_s3_object" "lambda_objects" {
   for_each    = local.lambda_definitions
-  bucket      = aws_s3_bucket.apple_update_notification_bucket.id
+  bucket      = var.artifact_bucket_id
   key         = "${each.key}.zip"
   source      = "${each.key}.zip"
   source_hash = filemd5("${each.key}.zip")
 }
 
-# Deploy each Lambda
 resource "aws_lambda_function" "lambda_functions" {
   for_each         = local.lambda_definitions
-  s3_bucket        = aws_s3_bucket.apple_update_notification_bucket.id
+  s3_bucket        = var.artifact_bucket_id
   s3_key           = aws_s3_object.lambda_objects[each.key].key
-  function_name    = each.key
+  function_name    = "${local.name_prefix}-${each.key}"
   description      = each.value.description
   role             = aws_iam_role.lambda_roles[each.key].arn
   handler          = "${each.key}.lambda_handler"
-  runtime          = local.python_version
+  runtime          = var.python_version
   timeout          = 90
   source_code_hash = filemd5("${each.key}.zip")
 
@@ -154,20 +154,31 @@ resource "aws_lambda_function" "lambda_functions" {
         environment = var.environment
       },
       each.key == "apple_web_scrape" ? {
-        dynamodb_table_name = aws_dynamodb_table.apple_os_updates_table.name
+        dynamodb_table_name = var.dynamodb_table_name
       } : {}
     )
   }
 }
 
-# Add DynamoDB stream trigger only for lambdas that require it
 resource "aws_lambda_event_source_mapping" "lambda_event_mappings" {
   for_each = {
     for name, cfg in local.lambda_definitions : name => cfg
     if cfg.stream_access
   }
 
-  event_source_arn  = aws_dynamodb_table.apple_os_updates_table.stream_arn
+  event_source_arn  = var.dynamodb_table_stream_arn
   function_name     = aws_lambda_function.lambda_functions[each.key].arn
   starting_position = "LATEST"
+}
+
+output "lambda_function_arns" {
+  value = { for name, fn in aws_lambda_function.lambda_functions : name => fn.arn }
+}
+
+output "lambda_function_names" {
+  value = { for name, fn in aws_lambda_function.lambda_functions : name => fn.function_name }
+}
+
+output "lambda_schedules" {
+  value = { for name, cfg in local.scheduled_lambdas : name => cfg.schedule }
 }
