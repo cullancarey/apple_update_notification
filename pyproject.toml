@@ -1,0 +1,17 @@
+[project]
+name = "apple-update-notification"
+version = "0.1.0"
+description = "AWS Lambda app that tracks Apple OS releases and posts updates"
+requires-python = ">=3.13"
+dependencies = [
+  "beautifulsoup4==4.14.3",
+  "tweepy==4.16.0",
+  "urllib3==2.7.0",
+]
+
+[dependency-groups]
+dev = [
+  "bandit==1.9.4",
+  "boto3==1.43.24",
+  "pytest==9.0.3",
+]

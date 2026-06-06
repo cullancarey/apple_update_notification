@@ -18,6 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
+    - name: Setup Python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+    - name: Setup uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
     - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
@@ -86,6 +92,14 @@ jobs:
     # Install the latest version of Terraform CLI
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4
+
+    - name: Checkov Policy Scan
+      if: github.event_name == 'pull_request'
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: terraform
+        framework: terraform
+        quiet: true
 
     - name: Show deployment environment
       run: |
