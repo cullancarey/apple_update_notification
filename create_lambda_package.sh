@@ -26,12 +26,20 @@ if [[ -z "${PYTHON_BIN:-}" ]]; then
 fi
 echo "Using Python interpreter: $PYTHON_BIN"
 $PYTHON_BIN --version || true
-$PYTHON_BIN -m pip --version || true
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv is required but not installed. Install it from https://docs.astral.sh/uv/ and retry."
+  exit 127
+fi
+uv --version || true
 
 # Always start clean
 echo "Removing any previous artifacts"
 rm -f *.zip
 rm -rf package_*
+
+LAMBDA_REQ_FILE=".tmp_lambda_requirements.txt"
+echo "Exporting runtime dependency lock from pyproject.toml"
+uv export --no-dev --no-hashes --format requirements-txt > "$LAMBDA_REQ_FILE"
 
 # Build each Lambda package
 for HANDLER in "${LAMBDA_HANDLERS[@]}"; do
@@ -51,7 +59,7 @@ for HANDLER in "${LAMBDA_HANDLERS[@]}"; do
   cp "lambdas/apple_utils.py" "$PKG_DIR/"
   
   echo "Installing dependencies to $PKG_DIR"
-  $PYTHON_BIN -m pip install --upgrade --target "$PKG_DIR" -r ./requirements.txt
+  uv pip install --python "$PYTHON_BIN" --target "$PKG_DIR" -r "$LAMBDA_REQ_FILE"
   
   echo "Removing __pycache__ and *.pyc to reduce package size"
   find "$PKG_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} + || true
@@ -68,6 +76,8 @@ for HANDLER in "${LAMBDA_HANDLERS[@]}"; do
   echo "Cleaning up temporary directory: $PKG_DIR"
   rm -rf "$PKG_DIR"
 done
+
+rm -f "$LAMBDA_REQ_FILE"
 
 echo ""
 echo "========================================="

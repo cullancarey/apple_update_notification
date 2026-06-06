@@ -10,7 +10,7 @@ Automated system that:
 2. Stores the most recently observed OS versions (iOS, macOS, watchOS, tvOS, visionOS) in DynamoDB.
 3. Publishes a tweet whenever a new release version is detected (via DynamoDB Streams → Lambda).
 
-Infrastructure is provisioned with Terraform on AWS. Shared Python utilities (DynamoDB + SSM Parameter Store + Twitter auth) are packaged into a Lambda layer. Two core Lambda functions power the flow:
+Infrastructure is provisioned with Terraform on AWS. Two core Lambda functions power the flow:
 
 - `apple_web_scrape` – Periodically scrapes and updates DynamoDB if versions change.
 - `apple_send_update` – Triggered by DynamoDB Stream events to tweet newly detected releases.
@@ -24,14 +24,12 @@ AWS Event / (Scheduled Trigger e.g. EventBridge) --> apple_web_scrape (Lambda)
 	|  (GET https://support.apple.com/en-us/100100)
 	v
 Amazon DynamoDB (apple_os_updates_<env>) -- Stream --> apple_send_update (Lambda) -- Tweepy --> Twitter
-
-Shared Lambda Layer: apple_utils (boto3 + tweepy + helper code)
 ```
 
 Key Components:
 
 - **DynamoDB Table**: `apple_os_updates_<environment>`; partition key: `device`. Stream enabled (NEW_IMAGE) for change detection.
-- **Lambda Layer**: `apple_utils` (built from `apple_utils.py` + `requirements.txt`).
+- **Lambda Packaging**: each Lambda zip contains handler + `apple_utils.py` + runtime dependencies.
 - **Parameter Store (SSM)**: Holds Twitter API credentials (see below).
 - **IAM Roles/Policies**: Scoped to least privilege for CloudWatch Logs, DynamoDB access, S3 artifact retrieval, and SSM parameter reads.
 - **S3 Bucket**: Stores zipped Lambda deployment packages and layer bundle.
@@ -50,9 +48,8 @@ Key Components:
 ├─ terraform/                  # Infrastructure as code
 │  ├─ *.tf                     # Providers, Lambdas, DynamoDB, IAM, etc.
 ├─ tests/                      # Pytest unit tests for both Lambdas
-├─ create_lambda_package.sh    # Builds layer zip (apple_utils.zip)
-├─ requirements.txt            # Runtime dependencies
-├─ requirements-dev.txt        # Dev/testing dependencies
+├─ create_lambda_package.sh    # Builds Lambda deployment zips
+├─ pyproject.toml              # Project dependencies managed by uv
 └─ README.md
 ```
 
@@ -92,11 +89,12 @@ The Tweepy client is constructed per invocation (once) using credentials from de
 
 ---
 
-## Building the Lambda Layer
+## Building Lambda Packages
 
-The layer contains:
-- `apple_utils.py`
-- Third-party libraries from `requirements.txt` (e.g., `boto3`, `tweepy`, `beautifulsoup4`, `urllib3` etc.)
+Each package contains:
+- Lambda handler (`apple_web_scrape.py` or `apple_send_update.py`)
+- Shared utility module (`apple_utils.py`)
+- Runtime dependencies exported from `pyproject.toml`
 
 Use the helper script:
 
@@ -104,7 +102,7 @@ Use the helper script:
 ./create_lambda_package.sh
 ```
 
-This produces `apple_utils.zip` at the repository root, which Terraform uploads to S3 and attaches as a Lambda layer (`lambda_utils_layer`).
+This produces `apple_web_scrape.zip` and `apple_send_update.zip` at the repository root.
 
 ---
 
@@ -120,7 +118,6 @@ Variables (see `terraform/variables.tf`):
 Core resources provisioned:
 - DynamoDB table (with stream).
 - Two Lambda functions + IAM roles & policies.
-- Lambda layer from S3 object (`apple_utils.zip`).
 - S3 bucket for artifacts & (optionally) static site / backups.
 
 Backend configuration is split via `backend.main.conf` / `backend.develop.conf` to support multiple workspaces/environments.
@@ -135,7 +132,7 @@ terraform apply -var="environment=develop" -var="twitter_username=<your_handle>"
 ```
 
 Assumptions:
-- You have pre-built and uploaded (or allowed Terraform to upload) `apple_utils.zip` into the designated S3 bucket via `create_lambda_package.sh`.
+- You have pre-built Lambda zip artifacts via `create_lambda_package.sh`.
 - SSM parameters for Twitter credentials already exist.
 - AWS credentials & default region (`us-east-2` primary) are configured locally.
 
@@ -143,11 +140,9 @@ Assumptions:
 
 ## Local Development & Testing
 
-Install development dependencies:
+Install dependencies with uv:
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
+uv sync --group dev
 ```
 
 Run tests locally from /lambdas directory:
@@ -162,7 +157,7 @@ The tests mock external services (HTTP, SSM, Twitter, DynamoDB) to enable determ
 ## Adding New Logic
 
 1. Add or modify Lambda code under `lambdas/`.
-2. If shared utilities are modified, rebuild the layer (`create_lambda_package.sh`) and re-apply Terraform so the new layer version is published and referenced.
+2. Rebuild deployment packages (`create_lambda_package.sh`) and re-apply Terraform.
 3. Add / update unit tests in `tests/`.
 4. Run `pytest` before committing.
 
@@ -201,7 +196,7 @@ All must be in the same region as the Lambda functions (primary: `us-east-2`).
 | Issue | Likely Cause | Fix |
 |-------|--------------|-----|
 | No tweets posted | Missing or invalid SSM parameters | Verify parameter names & IAM `ssm:GetParameter` permissions. |
-| Lambda layer import errors | Layer zip outdated | Re-run `create_lambda_package.sh` & redeploy Terraform. |
+| Lambda import errors | Deployment zip outdated | Re-run `create_lambda_package.sh` & redeploy Terraform. |
 | DynamoDB updates never trigger | Scheduler not configured | Add EventBridge rule to invoke `apple_web_scrape`. |
 | Parse failures / Missing devices | Apple page markup changed | Update CSS selectors & regex in `apple_web_scrape.parse_release_statements`. |
 
@@ -229,7 +224,7 @@ See `LICENSE` for details.
 
 ## Quick Reference Commands
 ```bash
-# Build layer
+# Build Lambda packages
 ./create_lambda_package.sh
 
 # Run tests
