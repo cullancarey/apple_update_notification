@@ -5,9 +5,7 @@ Creates CloudWatch and EventBridge resources for Lambda logging and scheduled ex
 ## Inputs
 
 - `environment`
-- `lambda_function_names` (map)
-- `lambda_function_arns` (map)
-- `lambda_schedules` (map)
+- `lambda_functions` (map of objects with `name`, `arn`, and optional `schedule`)
 
 ## Resources
 

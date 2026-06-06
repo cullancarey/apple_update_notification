@@ -34,7 +34,7 @@ locals {
   name_prefix = "apple-${var.environment}"
 
   schedule_by_env = {
-    development = "rate(15 minutes)"
+    development = null
     production  = "rate(1 hour)"
   }
 
@@ -181,4 +181,14 @@ output "lambda_function_names" {
 
 output "lambda_schedules" {
   value = { for name, cfg in local.scheduled_lambdas : name => cfg.schedule }
+}
+
+output "lambda_functions" {
+  value = {
+    for name, fn in aws_lambda_function.lambda_functions : name => {
+      name     = fn.function_name
+      arn      = fn.arn
+      schedule = try(local.lambda_definitions[name].schedule, null)
+    }
+  }
 }

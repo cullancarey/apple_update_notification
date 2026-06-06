@@ -26,7 +26,7 @@ Creates Lambda application resources, IAM permissions, and artifact uploads.
 
 Schedule map in module locals:
 
-- `development` -> `rate(15 minutes)`
+- `development` -> no schedule
 - `production` -> `rate(1 hour)`
 
 ## Outputs
@@ -34,3 +34,4 @@ Schedule map in module locals:
 - `lambda_function_arns`
 - `lambda_function_names`
 - `lambda_schedules`
+- `lambda_functions` (object map containing function name, arn, and optional schedule)

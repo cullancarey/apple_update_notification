@@ -26,8 +26,6 @@ module "lambda_service" {
 module "observability" {
   source = "./modules/observability"
 
-  environment           = var.environment
-  lambda_function_names = module.lambda_service.lambda_function_names
-  lambda_function_arns  = module.lambda_service.lambda_function_arns
-  lambda_schedules      = module.lambda_service.lambda_schedules
+  environment      = var.environment
+  lambda_functions = module.lambda_service.lambda_functions
 }
