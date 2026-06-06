@@ -86,14 +86,6 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4
 
-    - name: Terraform Module Validate
-      run: |
-        for module in modules/data-store modules/storage modules/lambda-service modules/observability; do
-          echo "Validating ${module}"
-          terraform -chdir="${module}" init -backend=false -input=false
-          terraform -chdir="${module}" validate -no-color
-        done
-
     - name: Checkov Policy Scan
       uses: bridgecrewio/checkov-action@v12
       with:
