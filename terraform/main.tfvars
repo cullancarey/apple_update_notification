@@ -1,5 +1,5 @@
 # root_domain_name = "appleupdatenotification.com"
 environment = "production"
 # subscription_intake_api_domain = "subscription.appleupdatenotification.com"
-twitter_username = "UpdateApple_"
+twitter_username  = "UpdateApple_"
 error_alert_email = "cullancarey@gmail.com"

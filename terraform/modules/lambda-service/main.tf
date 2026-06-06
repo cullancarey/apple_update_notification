@@ -168,8 +168,8 @@ resource "aws_lambda_function" "lambda_functions" {
   environment {
     variables = merge(
       {
-        environment         = var.environment
-        dynamodb_table_name = var.dynamodb_table_name
+        environment           = var.environment
+        dynamodb_table_name   = var.dynamodb_table_name
         error_alert_topic_arn = var.error_alert_topic_arn
       },
       each.key == "apple_web_scrape" ? {
