@@ -1,5 +1,7 @@
 """AWS SDK utilities for Parameter Store, DynamoDB, and Twitter interactions."""
 
+import json
+import os
 import logging
 import boto3
 import tweepy
@@ -18,6 +20,7 @@ logger.setLevel(logging.INFO)
 # -------------------------------------------------------------------------
 PARAMETER_PREFIX = "apple_update_notification"
 TWEET_DEDUP_PREFIX = "tweet_posted"
+ERROR_ALERT_TOPIC_ENV_VAR = "error_alert_topic_arn"
 
 # -------------------------------------------------------------------------
 # Global AWS Session / Config (improves Lambda cold-start performance)
@@ -28,6 +31,7 @@ session = boto3.session.Session()
 # Global clients reused across invocations
 ssm_client = session.client("ssm", config=boto_cfg)
 dynamodb_resource = session.resource("dynamodb", config=boto_cfg)
+sns_client = session.client("sns", config=boto_cfg)
 
 
 # -------------------------------------------------------------------------
@@ -150,6 +154,28 @@ def mark_tweet_posted(table, device: str, release_version: str) -> bool:
         raise
 
 
+def notify_error(source: str, error_message: str, details: dict | None = None) -> None:
+    """Publish an error notification to SNS when an alert topic is configured."""
+    topic_arn = os.getenv(ERROR_ALERT_TOPIC_ENV_VAR)
+    if not topic_arn:
+        return
+
+    payload = {
+        "source": source,
+        "error_message": error_message,
+        "details": details or {},
+    }
+
+    try:
+        sns_client.publish(
+            TopicArn=topic_arn,
+            Subject=f"Lambda error: {source}",
+            Message=json.dumps(payload, default=str),
+        )
+    except (ClientError, BotoCoreError):
+        logger.error("Failed to publish SNS error notification.", exc_info=True)
+
+
 # -------------------------------------------------------------------------
 # Twitter Client Authentication
 # -------------------------------------------------------------------------
@@ -193,6 +219,7 @@ __all__ = [
     "create_dynamodb_resource",
     "get_device_item",
     "mark_tweet_posted",
+    "notify_error",
     "authenticate_twitter_client",
     "ParameterRetrievalError",
     "DynamoDBItemNotFound",

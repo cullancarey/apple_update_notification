@@ -83,13 +83,20 @@ def test_lambda_handler_success(
     side_effect=Exception("Auth failed"),
 )
 @patch("lambdas.apple_send_update.create_dynamodb_resource")
-def test_lambda_handler_auth_failure(mock_dynamodb_resource, mock_auth, dynamodb_event):
+@patch("lambdas.apple_send_update.notify_error")
+def test_lambda_handler_auth_failure(
+    mock_notify,
+    mock_dynamodb_resource,
+    mock_auth,
+    dynamodb_event,
+):
     """If authentication fails, lambda should log and exit without tweeting."""
     mock_dynamodb_resource.return_value = MagicMock()
     with patch.dict("os.environ", {"dynamodb_table_name": "table"}):
         result = aws.lambda_handler(dynamodb_event, {})
     mock_auth.assert_called_once()
     assert len(result["batchItemFailures"]) == 2
+    mock_notify.assert_called_once()
 
 
 @patch("lambdas.apple_send_update.authenticate_twitter_client")

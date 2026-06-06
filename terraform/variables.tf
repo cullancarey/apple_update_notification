@@ -18,3 +18,9 @@ variable "aws_region" {
   description = "AWS region where infrastructure is deployed."
   default     = "us-east-2"
 }
+
+variable "error_alert_email" {
+  type        = string
+  description = "Optional email address for SNS notifications when Lambda errors occur."
+  default     = null
+}

@@ -7,9 +7,9 @@ from bs4 import BeautifulSoup
 from botocore.exceptions import ClientError
 
 try:
-    from .apple_utils import get_device_item, create_dynamodb_resource
+    from .apple_utils import get_device_item, create_dynamodb_resource, notify_error
 except ImportError:
-    from apple_utils import get_device_item, create_dynamodb_resource
+    from apple_utils import get_device_item, create_dynamodb_resource, notify_error
 
 # Constants
 APPLE_RELEASE_URL = "https://support.apple.com/en-us/100100"
@@ -28,13 +28,28 @@ def fetch_apple_release_page(url=APPLE_RELEASE_URL):
         response = http.request("GET", url, redirect=True)
         if response.status != 200:
             logger.error(f"Failed to fetch URL {url}. Status code: {response.status}")
+            notify_error(
+                source="apple_web_scrape",
+                error_message="Failed to fetch Apple release page.",
+                details={"status_code": response.status, "url": url},
+            )
             return None
         return response.data.decode("utf-8", errors="ignore")
     except urllib3.exceptions.HTTPError as e:
         logger.error(f"HTTP error occurred while fetching Apple release page: {e}")
+        notify_error(
+            source="apple_web_scrape",
+            error_message="HTTP error while fetching Apple release page.",
+            details={"exception": str(e), "url": url},
+        )
         return None
     except Exception as e:
         logger.error(f"Error fetching Apple release page: {e}", exc_info=True)
+        notify_error(
+            source="apple_web_scrape",
+            error_message="Unexpected error while fetching Apple release page.",
+            details={"exception": str(e), "url": url},
+        )
         return None
 
 
@@ -140,6 +155,15 @@ def update_dynamodb(table, device, release_version, release_statement):
         logger.error(
             f"Error updating {device} for version {release_version} in DynamoDB: {err}"
         )
+        notify_error(
+            source="apple_web_scrape",
+            error_message="Failed to update DynamoDB release state.",
+            details={
+                "device": device,
+                "release_version": release_version,
+                "exception": str(err),
+            },
+        )
         return False
     else:
         logger.info(
@@ -153,11 +177,20 @@ def lambda_handler(event, context):
     dynamodb_table_name = os.getenv(DYNAMODB_TABLE_ENV_VAR)
     if not dynamodb_table_name:
         logger.error(f"Environment variable '{DYNAMODB_TABLE_ENV_VAR}' is not set.")
+        notify_error(
+            source="apple_web_scrape",
+            error_message="Missing required Lambda environment variable.",
+            details={"variable": DYNAMODB_TABLE_ENV_VAR},
+        )
         return
 
     latest_releases = get_latest_releases()
     if not latest_releases:
         logger.error("Failed to retrieve latest releases.")
+        notify_error(
+            source="apple_web_scrape",
+            error_message="Failed to retrieve latest Apple releases.",
+        )
         return
 
     logger.info(f"Latest releases fetched: {latest_releases}")

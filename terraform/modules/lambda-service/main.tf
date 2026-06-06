@@ -30,6 +30,11 @@ variable "dynamodb_table_stream_arn" {
   type = string
 }
 
+variable "error_alert_topic_arn" {
+  type    = string
+  default = null
+}
+
 locals {
   name_prefix = "apple-${var.environment}"
 
@@ -121,6 +126,17 @@ data "aws_iam_policy_document" "lambda_policies" {
       effect = "Allow"
     }
   }
+
+  dynamic "statement" {
+    for_each = var.error_alert_topic_arn != null && trimspace(var.error_alert_topic_arn) != "" ? [1] : []
+
+    content {
+      sid       = "SnsPublishAlerts"
+      actions   = ["sns:Publish"]
+      resources = [var.error_alert_topic_arn]
+      effect    = "Allow"
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "lambda_policies" {
@@ -154,6 +170,7 @@ resource "aws_lambda_function" "lambda_functions" {
       {
         environment         = var.environment
         dynamodb_table_name = var.dynamodb_table_name
+        error_alert_topic_arn = var.error_alert_topic_arn
       },
       each.key == "apple_web_scrape" ? {
         dynamodb_table_name = var.dynamodb_table_name

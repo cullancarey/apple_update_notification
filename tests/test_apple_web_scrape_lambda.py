@@ -57,13 +57,15 @@ def test_fetch_apple_release_page_success(mock_pool):
 
 
 @patch("lambdas.apple_web_scrape.urllib3.PoolManager")
-def test_fetch_apple_release_page_failure(mock_pool):
+@patch("lambdas.apple_web_scrape.notify_error")
+def test_fetch_apple_release_page_failure(mock_notify, mock_pool):
     mock_http = MagicMock()
     mock_pool.return_value = mock_http
     mock_http.request.return_value.status = 404
 
     result = aws.fetch_apple_release_page("https://mock.url")
     assert result is None
+    mock_notify.assert_called_once()
 
 
 # -------------------------------------------------------------------------
@@ -243,7 +245,9 @@ def test_lambda_handler_success(
 
 
 @patch("lambdas.apple_web_scrape.create_dynamodb_resource")
-def test_lambda_handler_missing_env(mock_dynamo, monkeypatch):
+@patch("lambdas.apple_web_scrape.notify_error")
+def test_lambda_handler_missing_env(mock_notify, mock_dynamo, monkeypatch):
     monkeypatch.delenv("dynamodb_table_name", raising=False)
     aws.lambda_handler({}, {})
     mock_dynamo.assert_not_called()
+    mock_notify.assert_called_once()

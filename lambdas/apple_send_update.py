@@ -10,12 +10,14 @@ try:
         authenticate_twitter_client,
         create_dynamodb_resource,
         mark_tweet_posted,
+        notify_error,
     )
 except ImportError:
     from apple_utils import (
         authenticate_twitter_client,
         create_dynamodb_resource,
         mark_tweet_posted,
+        notify_error,
     )
 
 # -------------------------------------------------------------------------
@@ -41,6 +43,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     dynamodb_table_name = os.getenv(DYNAMODB_TABLE_ENV_VAR)
     if not dynamodb_table_name:
         logger.error("Environment variable '%s' is not set.", DYNAMODB_TABLE_ENV_VAR)
+        notify_error(
+            source="apple_send_update",
+            error_message="Missing required Lambda environment variable.",
+            details={"variable": DYNAMODB_TABLE_ENV_VAR},
+        )
         return {
             "batchItemFailures": [
                 {"itemIdentifier": r["eventID"]} for r in records if r.get("eventID")
@@ -56,6 +63,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info("Twitter client successfully authenticated.")
     except Exception as e:
         logger.error(f"Failed to authenticate Twitter client: {e}", exc_info=True)
+        notify_error(
+            source="apple_send_update",
+            error_message="Twitter authentication failed.",
+            details={"exception": str(e)},
+        )
         return {
             "batchItemFailures": [
                 {"itemIdentifier": r["eventID"]} for r in records if r.get("eventID")
@@ -93,6 +105,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         except Exception as e:
             logger.error(f"Error processing record: {e}", exc_info=True)
+            notify_error(
+                source="apple_send_update",
+                error_message="Error processing DynamoDB stream record.",
+                details={
+                    "event_id": event_id,
+                    "exception": str(e),
+                },
+            )
             if event_id:
                 failures.append({"itemIdentifier": event_id})
 

@@ -2,3 +2,4 @@
 environment = "production"
 # subscription_intake_api_domain = "subscription.appleupdatenotification.com"
 twitter_username = "UpdateApple_"
+error_alert_email = "cullancarey@gmail.com"
