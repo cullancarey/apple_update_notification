@@ -17,6 +17,7 @@ logger.setLevel(logging.INFO)
 # Constants
 # -------------------------------------------------------------------------
 PARAMETER_PREFIX = "apple_update_notification"
+TWEET_DEDUP_PREFIX = "tweet_posted"
 
 # -------------------------------------------------------------------------
 # Global AWS Session / Config (improves Lambda cold-start performance)
@@ -113,6 +114,42 @@ def get_device_item(table, device: str):
         ) from err
 
 
+def mark_tweet_posted(table, device: str, release_version: str) -> bool:
+    """
+    Marks a tweet as posted using a conditional put for idempotency.
+    Returns False when the same device/version was already recorded.
+    """
+    dedup_key = f"{TWEET_DEDUP_PREFIX}#{device}#{release_version}"
+
+    try:
+        table.put_item(
+            Item={
+                "device": dedup_key,
+                "ReleaseVersion": release_version,
+                "ReleaseStatement": f"tweeted:{device}:{release_version}",
+            },
+            ConditionExpression="attribute_not_exists(device)",
+        )
+        return True
+    except ClientError as err:
+        error_code = err.response.get("Error", {}).get("Code")
+        if error_code == "ConditionalCheckFailedException":
+            logger.info(
+                "Skipping duplicate tweet event for %s release %s.",
+                device,
+                release_version,
+            )
+            return False
+        logger.error(
+            "Error writing tweet idempotency marker for %s %s: %s",
+            device,
+            release_version,
+            err,
+            exc_info=True,
+        )
+        raise
+
+
 # -------------------------------------------------------------------------
 # Twitter Client Authentication
 # -------------------------------------------------------------------------
@@ -155,6 +192,7 @@ __all__ = [
     "create_ssm_client",
     "create_dynamodb_resource",
     "get_device_item",
+    "mark_tweet_posted",
     "authenticate_twitter_client",
     "ParameterRetrievalError",
     "DynamoDBItemNotFound",

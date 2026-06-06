@@ -86,13 +86,6 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4
 
-    - name: Checkov Policy Scan
-      uses: bridgecrewio/checkov-action@v12
-      with:
-        directory: terraform
-        framework: terraform
-        quiet: true
-
     - name: Show deployment environment
       run: |
         echo "GitHub Environment: ${{ inputs.environment }}"

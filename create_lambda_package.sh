@@ -26,6 +26,10 @@ if [[ -z "${PYTHON_BIN:-}" ]]; then
 fi
 echo "Using Python interpreter: $PYTHON_BIN"
 $PYTHON_BIN --version || true
+if ! "$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 13) else 1)'; then
+  echo "Selected interpreter ($PYTHON_BIN) must be Python >= 3.13 to match pyproject.toml requires-python."
+  exit 1
+fi
 if ! command -v uv >/dev/null 2>&1; then
   echo "uv is required but not installed. Install it from https://docs.astral.sh/uv/ and retry."
   exit 127
@@ -52,7 +56,7 @@ for HANDLER in "${LAMBDA_HANDLERS[@]}"; do
   ZIP_NAME="${HANDLER}.zip"
   
   echo "Making package directory: $PKG_DIR"
-  mkdir -p "$PKG_DIR"
+  mkdir -p "$PKG_DIR" 
   
   echo "Copying Lambda handler and shared utilities"
   cp "lambdas/${HANDLER}.py" "$PKG_DIR/"

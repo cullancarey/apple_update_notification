@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
     - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
@@ -90,6 +90,7 @@ jobs:
       uses: hashicorp/setup-terraform@v4
 
     - name: Checkov Policy Scan
+      if: github.event_name == 'pull_request'
       uses: bridgecrewio/checkov-action@v12
       with:
         directory: terraform

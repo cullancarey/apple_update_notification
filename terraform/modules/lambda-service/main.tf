@@ -50,6 +50,7 @@ locals {
     apple_send_update = {
       description = "Triggered by DynamoDB stream to tweet updates"
       dynamodb_actions = [
+        "dynamodb:PutItem",
         "dynamodb:GetRecords",
         "dynamodb:GetShardIterator",
         "dynamodb:DescribeStream",
@@ -151,7 +152,8 @@ resource "aws_lambda_function" "lambda_functions" {
   environment {
     variables = merge(
       {
-        environment = var.environment
+        environment         = var.environment
+        dynamodb_table_name = var.dynamodb_table_name
       },
       each.key == "apple_web_scrape" ? {
         dynamodb_table_name = var.dynamodb_table_name
@@ -169,6 +171,12 @@ resource "aws_lambda_event_source_mapping" "lambda_event_mappings" {
   event_source_arn  = var.dynamodb_table_stream_arn
   function_name     = aws_lambda_function.lambda_functions[each.key].arn
   starting_position = "LATEST"
+  batch_size        = 100
+
+  maximum_retry_attempts         = 5
+  maximum_record_age_in_seconds  = 3600
+  bisect_batch_on_function_error = true
+  function_response_types        = ["ReportBatchItemFailures"]
 }
 
 output "lambda_function_arns" {
