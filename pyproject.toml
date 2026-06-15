@@ -13,5 +13,5 @@ dependencies = [
 dev = [
   "bandit==1.9.4",
   "boto3==1.43.24",
-  "pytest==9.0.3",
+  "pytest==9.1.0",
 ]
