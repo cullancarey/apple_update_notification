@@ -5,7 +5,7 @@ description = "AWS Lambda app that tracks Apple OS releases and posts updates"
 requires-python = ">=3.13"
 dependencies = [
   "beautifulsoup4==4.14.3",
-  "tweepy==4.16.0",
+  "tweepy==4.17.0",
   "urllib3==2.7.0",
 ]
 
