@@ -12,6 +12,6 @@ dependencies = [
 [dependency-groups]
 dev = [
   "bandit==1.9.4",
-  "boto3==1.43.24",
+  "boto3==1.43.51",
   "pytest==9.0.3",
 ]
