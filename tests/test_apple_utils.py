@@ -15,7 +15,7 @@ def test_notify_error_publishes_when_topic_configured(mock_publish):
         {"error_alert_topic_arn": "arn:aws:sns:us-east-2:123456789012:alerts"},
     ):
         notify_error(
-            source="apple_send_update",
+            source="apple_web_scrape",
             error_message="test error",
             details={"event_id": "evt-1"},
         )
@@ -23,7 +23,7 @@ def test_notify_error_publishes_when_topic_configured(mock_publish):
     mock_publish.assert_called_once()
     publish_kwargs = mock_publish.call_args.kwargs
     assert publish_kwargs["TopicArn"] == "arn:aws:sns:us-east-2:123456789012:alerts"
-    assert "apple_send_update" in publish_kwargs["Subject"]
+    assert "apple_web_scrape" in publish_kwargs["Subject"]
     assert "test error" in publish_kwargs["Message"]
 
 

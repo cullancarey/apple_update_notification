@@ -7,9 +7,19 @@ from bs4 import BeautifulSoup
 from botocore.exceptions import ClientError
 
 try:
-    from .apple_utils import get_device_item, create_dynamodb_resource, notify_error
+    from .apple_utils import (
+        get_device_item,
+        create_dynamodb_resource,
+        notify_error,
+        publish_release_notification,
+    )
 except ImportError:
-    from apple_utils import get_device_item, create_dynamodb_resource, notify_error
+    from apple_utils import (
+        get_device_item,
+        create_dynamodb_resource,
+        notify_error,
+        publish_release_notification,
+    )
 
 # Constants
 APPLE_RELEASE_URL = "https://support.apple.com/en-us/100100"
@@ -172,6 +182,25 @@ def update_dynamodb(table, device, release_version, release_statement):
         return True
 
 
+def format_combined_notification(changed_releases):
+    """Build a single SNS email for all release updates found in one scrape."""
+    subject = f"Apple release updates: {len(changed_releases)} change(s) detected"
+    lines = ["New Apple releases were detected:"]
+
+    for release in changed_releases:
+        lines.extend(
+            [
+                "",
+                f"- {release['device']}",
+                f"  Version: {release['release_version']}",
+                f"  Details: {release['release_statement']}",
+            ]
+        )
+
+    message = "\n".join(lines)
+    return subject, message
+
+
 def lambda_handler(event, context):
     """AWS Lambda entry-point function."""
     dynamodb_table_name = os.getenv(DYNAMODB_TABLE_ENV_VAR)
@@ -185,6 +214,23 @@ def lambda_handler(event, context):
         return
 
     latest_releases = get_latest_releases()
+
+    # Used for testing purposes, uncomment to simulate a release update
+    # latest_releases = {
+    #     "iOS": "26.0.1",
+    #     "macOS": "26.0.1",
+    #     "watchOS": "26.0.2",
+    #     "tvOS": "26.0.1",
+    #     "visionOS": "26.0.1",
+    #     "release_statements": {
+    #         "iOS": "The latest version of iOS and iPadOS is 26.0.1",
+    #         "macOS": "The latest version of macOS is 26.0.1",
+    #         "watchOS": "The latest version of watchOS is 26.0.2",
+    #         "tvOS": "The latest version of tvOS is 26.0.1",
+    #         "visionOS": "The latest version of visionOS is 26.0.1",
+    #     },
+    # }
+
     if not latest_releases:
         logger.error("Failed to retrieve latest releases.")
         notify_error(
@@ -197,6 +243,7 @@ def lambda_handler(event, context):
 
     dynamodb = create_dynamodb_resource()
     table = dynamodb.Table(dynamodb_table_name)
+    changed_releases = []
 
     for device, latest_version in latest_releases.items():
         if device == "release_statements":
@@ -211,9 +258,39 @@ def lambda_handler(event, context):
             logger.info(f"No update needed for {device}.")
             continue
 
-        update_dynamodb(
+        release_statement = latest_releases["release_statements"][device]
+        updated = update_dynamodb(
             table=table,
             device=device,
             release_version=latest_version,
-            release_statement=latest_releases["release_statements"][device],
+            release_statement=release_statement,
+        )
+
+        if updated:
+            changed_releases.append(
+                {
+                    "device": device,
+                    "release_version": latest_version,
+                    "release_statement": release_statement,
+                }
+            )
+
+    if not changed_releases:
+        logger.info("No release changes detected.")
+        return
+
+    try:
+        subject, message = format_combined_notification(changed_releases)
+        publish_release_notification(subject, message)
+        logger.info(
+            "Sent combined release notification for %d updates.", len(changed_releases)
+        )
+    except Exception as err:
+        logger.error(
+            "Failed to publish combined release notification: %s", err, exc_info=True
+        )
+        notify_error(
+            source="apple_web_scrape",
+            error_message="Failed to publish combined release notification.",
+            details={"exception": str(err), "changed_releases": changed_releases},
         )

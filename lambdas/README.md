@@ -5,7 +5,6 @@ This directory contains Lambda runtime code for scraping Apple release data and 
 ## Files
 
 - `apple_web_scrape.py` - Scheduled scraper. Fetches Apple's release page, extracts per-device versions/statements, and updates DynamoDB.
-- `apple_send_update.py` - Stream processor. Handles DynamoDB stream `MODIFY` records and publishes release notifications to SNS.
 - `apple_utils.py` - Shared helpers for AWS clients/resources, DynamoDB lookup, and SNS notifications.
 - `apple_subscription.py` - Placeholder for future subscription functionality.
 - `apple_thank_you.py` - Placeholder for future post-signup automation.
@@ -13,7 +12,7 @@ This directory contains Lambda runtime code for scraping Apple release data and 
 ## Runtime Inputs
 
 - `apple_web_scrape` expects env var `dynamodb_table_name`.
-- `apple_send_update` also expects env var `release_notification_topic_arn`.
+- `apple_web_scrape` also expects env var `release_notification_topic_arn`.
 - Both functions can publish error notifications when `error_alert_topic_arn` is configured.
 
 ## Packaging

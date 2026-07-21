@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 cd "$SCRIPT_DIR"
 
 # Define Lambda handlers to package
-LAMBDA_HANDLERS=("apple_web_scrape" "apple_send_update")
+LAMBDA_HANDLERS=("apple_web_scrape")
 
 # --- Pick a Python interpreter compatible with pyproject requires-python (>=3.13) ---
 is_compatible_python() {

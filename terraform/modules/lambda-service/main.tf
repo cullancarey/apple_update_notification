@@ -52,22 +52,9 @@ locals {
     apple_web_scrape = {
       description                 = "Scrapes Apple site and updates DynamoDB"
       dynamodb_actions            = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
-      release_notification_access = false
+      release_notification_access = true
       stream_access               = false
       schedule                    = local.schedule_by_env[var.environment]
-    }
-
-    apple_send_update = {
-      description = "Triggered by DynamoDB stream to send release notifications"
-      dynamodb_actions = [
-        "dynamodb:PutItem",
-        "dynamodb:GetRecords",
-        "dynamodb:GetShardIterator",
-        "dynamodb:DescribeStream",
-        "dynamodb:ListStreams"
-      ]
-      release_notification_access = true
-      stream_access               = true
     }
   }
 
@@ -181,23 +168,6 @@ resource "aws_lambda_function" "lambda_functions" {
       } : {}
     )
   }
-}
-
-resource "aws_lambda_event_source_mapping" "lambda_event_mappings" {
-  for_each = {
-    for name, cfg in local.lambda_definitions : name => cfg
-    if cfg.stream_access
-  }
-
-  event_source_arn  = var.dynamodb_table_stream_arn
-  function_name     = aws_lambda_function.lambda_functions[each.key].arn
-  starting_position = "LATEST"
-  batch_size        = 100
-
-  maximum_retry_attempts         = 5
-  maximum_record_age_in_seconds  = 3600
-  bisect_batch_on_function_error = true
-  function_response_types        = ["ReportBatchItemFailures"]
 }
 
 output "lambda_function_arns" {

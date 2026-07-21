@@ -33,7 +33,6 @@ jobs:
         name: lambda_build
         path: |
           apple_web_scrape.zip
-          apple_send_update.zip
 
   terraform-deploy:
     name: Deploy Terraform to ${{ inputs.environment }}

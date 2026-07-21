@@ -5,7 +5,6 @@ Pytest test suite for Lambda behavior.
 ## Files
 
 - `test_apple_web_scrape_lambda.py` - Tests parsing and DynamoDB update behavior for scraper logic.
-- `test_apple_send_update_lambda.py` - Tests stream processing and SNS release-notification behavior.
 
 ## Run
 

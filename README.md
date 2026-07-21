@@ -10,15 +10,13 @@ Current flow:
 
 1. `apple_web_scrape` runs on an EventBridge schedule and scrapes Apple's release page.
 2. Release data is written to DynamoDB (`apple_os_updates_<environment>`).
-3. DynamoDB stream changes trigger `apple_send_update`.
-4. `apple_send_update` formats and sends release notification emails through SNS.
+3. `apple_web_scrape` sends one combined SNS email when release changes are detected.
 
 ## Architecture Snapshot
 
 ```text
 EventBridge schedule -> Lambda (apple_web_scrape)
-					 -> DynamoDB table + stream
-					 -> Lambda (apple_send_update)
+					 -> DynamoDB table
 					 -> Amazon SNS email notification
 ```
 
@@ -68,7 +66,7 @@ terraform -chdir=terraform validate -no-color
 
 ## Notes
 
-- Lambda artifacts are uploaded as zipped packages (`apple_web_scrape.zip`, `apple_send_update.zip`).
+- Lambda artifacts are uploaded as zipped packages (`apple_web_scrape.zip`).
 - Artifact bucket has versioning enabled plus lifecycle expiration for current and noncurrent objects after 60 days.
 - CloudWatch log retention is environment-aware (development: 180 days, production: 365 days).
 
