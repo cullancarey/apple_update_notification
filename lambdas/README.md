@@ -12,7 +12,7 @@ This directory contains Lambda runtime code for scraping Apple release data and 
 ## Runtime Inputs
 
 - `apple_web_scrape` expects env var `dynamodb_table_name`.
-- `apple_web_scrape` also expects env var `release_notification_topic_arn`.
+- `apple_web_scrape` publishes release emails when env var `release_notification_topic_arn` is configured.
 - Both functions can publish error notifications when `error_alert_topic_arn` is configured.
 
 ## Packaging

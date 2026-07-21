@@ -16,7 +16,6 @@ logger.setLevel(logging.INFO)
 # -------------------------------------------------------------------------
 # Constants
 # -------------------------------------------------------------------------
-RELEASE_NOTIFICATION_DEDUP_PREFIX = "release_notified"
 ERROR_ALERT_TOPIC_ENV_VAR = "error_alert_topic_arn"
 RELEASE_NOTIFICATION_TOPIC_ENV_VAR = "release_notification_topic_arn"
 
@@ -29,15 +28,6 @@ session = boto3.session.Session()
 # Global clients reused across invocations
 dynamodb_resource = session.resource("dynamodb", config=boto_cfg)
 sns_client = session.client("sns", config=boto_cfg)
-
-
-# -------------------------------------------------------------------------
-# Custom Exceptions
-# -------------------------------------------------------------------------
-class ConfigurationError(Exception):
-    """Raised when required runtime configuration is missing."""
-
-    pass
 
 
 class DynamoDBItemNotFound(Exception):
@@ -76,49 +66,14 @@ def get_device_item(table, device: str):
         ) from err
 
 
-def mark_release_notified(table, device: str, release_version: str) -> bool:
-    """
-    Marks a release notification as sent using a conditional put for idempotency.
-    Returns False when the same device/version was already recorded.
-    """
-    dedup_key = f"{RELEASE_NOTIFICATION_DEDUP_PREFIX}#{device}#{release_version}"
-
-    try:
-        table.put_item(
-            Item={
-                "device": dedup_key,
-                "ReleaseVersion": release_version,
-                "ReleaseStatement": f"notified:{device}:{release_version}",
-            },
-            ConditionExpression="attribute_not_exists(device)",
-        )
-        return True
-    except ClientError as err:
-        error_code = err.response.get("Error", {}).get("Code")
-        if error_code == "ConditionalCheckFailedException":
-            logger.info(
-                "Skipping duplicate release notification for %s release %s.",
-                device,
-                release_version,
-            )
-            return False
-        logger.error(
-            "Error writing release notification marker for %s %s: %s",
-            device,
-            release_version,
-            err,
-            exc_info=True,
-        )
-        raise
-
-
 def publish_release_notification(subject: str, message: str) -> None:
     """Publish a release notification to SNS when a release topic is configured."""
     topic_arn = os.getenv(RELEASE_NOTIFICATION_TOPIC_ENV_VAR)
     if not topic_arn:
-        raise ConfigurationError(
-            f"Environment variable '{RELEASE_NOTIFICATION_TOPIC_ENV_VAR}' is not set."
+        logger.info(
+            "Release notification topic is not configured; skipping notification publish."
         )
+        return
 
     try:
         sns_client.publish(
@@ -159,9 +114,7 @@ def notify_error(source: str, error_message: str, details: dict | None = None) -
 __all__ = [
     "create_dynamodb_resource",
     "get_device_item",
-    "mark_release_notified",
     "publish_release_notification",
     "notify_error",
-    "ConfigurationError",
     "DynamoDBItemNotFound",
 ]

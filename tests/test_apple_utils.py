@@ -1,8 +1,6 @@
-import pytest
 from unittest.mock import patch
 
 from lambdas.apple_utils import (
-    ConfigurationError,
     notify_error,
     publish_release_notification,
 )
@@ -55,10 +53,12 @@ def test_publish_release_notification_publishes_when_topic_configured(mock_publi
     )
 
 
-def test_publish_release_notification_raises_without_topic():
+@patch("lambdas.apple_utils.sns_client.publish")
+def test_publish_release_notification_noop_without_topic(mock_publish):
     with patch.dict("os.environ", {}, clear=True):
-        with pytest.raises(ConfigurationError, match="release_notification_topic_arn"):
-            publish_release_notification(
-                subject="Apple release update: iOS 26.0.1",
-                message="A new Apple release was detected.",
-            )
+        publish_release_notification(
+            subject="Apple release update: iOS 26.0.1",
+            message="A new Apple release was detected.",
+        )
+
+    mock_publish.assert_not_called()

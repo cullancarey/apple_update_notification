@@ -20,7 +20,7 @@ Creates Lambda application resources, IAM permissions, and artifact uploads.
 - `apple_web_scrape` receives scheduled execution.
 - IAM policies include:
   - CloudWatch Logs permissions
-  - DynamoDB table/stream access scoped per function
+  - DynamoDB table access scoped per function
   - SNS publish access for error notifications where configured
   - SNS publish access for release notifications on `apple_web_scrape`
 

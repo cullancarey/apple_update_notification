@@ -215,22 +215,6 @@ def lambda_handler(event, context):
 
     latest_releases = get_latest_releases()
 
-    # Used for testing purposes, uncomment to simulate a release update
-    # latest_releases = {
-    #     "iOS": "26.0.1",
-    #     "macOS": "26.0.1",
-    #     "watchOS": "26.0.2",
-    #     "tvOS": "26.0.1",
-    #     "visionOS": "26.0.1",
-    #     "release_statements": {
-    #         "iOS": "The latest version of iOS and iPadOS is 26.0.1",
-    #         "macOS": "The latest version of macOS is 26.0.1",
-    #         "watchOS": "The latest version of watchOS is 26.0.2",
-    #         "tvOS": "The latest version of tvOS is 26.0.1",
-    #         "visionOS": "The latest version of visionOS is 26.0.1",
-    #     },
-    # }
-
     if not latest_releases:
         logger.error("Failed to retrieve latest releases.")
         notify_error(
