@@ -17,13 +17,13 @@ jobs:
     name: Build Lambda Deployment Package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Setup uv
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
     - name: Run build script
       run: ./create_lambda_package.sh
       shell: bash
@@ -53,10 +53,10 @@ jobs:
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Download all workflow run artifacts
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v8
       with:
         path: ./terraform
 
