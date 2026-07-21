@@ -1,4 +1,5 @@
 # root_domain_name = "develop.appleupdatenotification.com"
 environment = "development"
 # subscription_intake_api_domain = "subscription.develop.appleupdatenotification.com"
-twitter_username = "UpdateAppletest"
+error_alert_email          = "cullancarey@gmail.com"
+release_notification_email = "cullancarey@gmail.com"

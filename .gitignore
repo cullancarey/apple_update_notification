@@ -195,3 +195,5 @@ terraform/*.json
 plan.txt
 
 tfplan
+
+latest_releases_object.json

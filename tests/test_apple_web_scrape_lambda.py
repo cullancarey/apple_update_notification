@@ -57,13 +57,15 @@ def test_fetch_apple_release_page_success(mock_pool):
 
 
 @patch("lambdas.apple_web_scrape.urllib3.PoolManager")
-def test_fetch_apple_release_page_failure(mock_pool):
+@patch("lambdas.apple_web_scrape.notify_error")
+def test_fetch_apple_release_page_failure(mock_notify, mock_pool):
     mock_http = MagicMock()
     mock_pool.return_value = mock_http
     mock_http.request.return_value.status = 404
 
     result = aws.fetch_apple_release_page("https://mock.url")
     assert result is None
+    mock_notify.assert_called_once()
 
 
 # -------------------------------------------------------------------------
@@ -180,7 +182,7 @@ def test_update_dynamodb_failure():
 #         "watchOS": "26.0.2",
 #         "tvOS": "26.0.1",
 #         "visionOS": "26.0.1",
-#         "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
+#         "release_statements": {d: "release notice" for d in aws.DEVICE_LIST},
 #     }
 #     dynamo = {"iOS": "25.0.9"}  # different version
 #     aws.compare_and_update_releases(latest, dynamo, MagicMock())
@@ -195,7 +197,7 @@ def test_update_dynamodb_failure():
 #         "watchOS": "26.0.2",
 #         "tvOS": "26.0.1",
 #         "visionOS": "26.0.1",
-#         "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
+#         "release_statements": {d: "release notice" for d in aws.DEVICE_LIST},
 #     }
 #     dynamo = {d: latest[d] for d in aws.DEVICE_LIST}
 #     aws.compare_and_update_releases(latest, dynamo, MagicMock())
@@ -208,9 +210,11 @@ def test_update_dynamodb_failure():
 @patch("lambdas.apple_web_scrape.update_dynamodb")
 @patch("lambdas.apple_web_scrape.get_device_item")
 @patch("lambdas.apple_web_scrape.get_latest_releases")
+@patch("lambdas.apple_web_scrape.publish_release_notification")
 @patch("lambdas.apple_web_scrape.create_dynamodb_resource")
 def test_lambda_handler_success(
     mock_dynamo,
+    mock_publish_release_notification,
     mock_latest,
     mock_get_item,
     mock_update,
@@ -222,11 +226,11 @@ def test_lambda_handler_success(
         "tvOS": "26.0.1",
         "visionOS": "26.0.1",
         "release_statements": {
-            "iOS": "tweet",
-            "macOS": "tweet",
-            "watchOS": "tweet",
-            "tvOS": "tweet",
-            "visionOS": "tweet",
+            "iOS": "release notice",
+            "macOS": "release notice",
+            "watchOS": "release notice",
+            "tvOS": "release notice",
+            "visionOS": "release notice",
         },
     }
 
@@ -240,10 +244,82 @@ def test_lambda_handler_success(
 
     # update_dynamodb should be called once per device
     assert mock_update.call_count == 5
+    mock_publish_release_notification.assert_called_once()
+    subject, message = mock_publish_release_notification.call_args.args
+    assert "5 change(s) detected" in subject
+    assert "iOS" in message
+    assert "visionOS" in message
+
+
+@patch("lambdas.apple_web_scrape.update_dynamodb")
+@patch("lambdas.apple_web_scrape.get_device_item")
+@patch("lambdas.apple_web_scrape.get_latest_releases")
+@patch("lambdas.apple_web_scrape.publish_release_notification")
+@patch("lambdas.apple_web_scrape.create_dynamodb_resource")
+def test_lambda_handler_no_release_changes(
+    mock_dynamo,
+    mock_publish_release_notification,
+    mock_latest,
+    mock_get_item,
+    mock_update,
+):
+    mock_latest.return_value = {
+        "iOS": "26.0.1",
+        "macOS": "26.0.1",
+        "watchOS": "26.0.2",
+        "tvOS": "26.0.1",
+        "visionOS": "26.0.1",
+        "release_statements": {
+            "iOS": "release notice",
+            "macOS": "release notice",
+            "watchOS": "release notice",
+            "tvOS": "release notice",
+            "visionOS": "release notice",
+        },
+    }
+
+    mock_get_item.side_effect = [
+        {"ReleaseVersion": "26.0.1"},
+        {"ReleaseVersion": "26.0.1"},
+        {"ReleaseVersion": "26.0.2"},
+        {"ReleaseVersion": "26.0.1"},
+        {"ReleaseVersion": "26.0.1"},
+    ]
+
+    mock_table = MagicMock()
+    mock_dynamo.return_value.Table.return_value = mock_table
+
+    aws.lambda_handler({}, {})
+
+    mock_update.assert_not_called()
+    mock_publish_release_notification.assert_not_called()
+
+
+def test_format_combined_notification():
+    subject, message = aws.format_combined_notification(
+        [
+            {
+                "device": "iOS",
+                "release_version": "26.0.1",
+                "release_statement": "The latest version of iOS and iPadOS is 26.0.1",
+            },
+            {
+                "device": "macOS",
+                "release_version": "26.0.1",
+                "release_statement": "The latest version of macOS is 26.0.1",
+            },
+        ]
+    )
+
+    assert subject == "Apple release updates: 2 change(s) detected"
+    assert "iOS" in message
+    assert "macOS" in message
 
 
 @patch("lambdas.apple_web_scrape.create_dynamodb_resource")
-def test_lambda_handler_missing_env(mock_dynamo, monkeypatch):
+@patch("lambdas.apple_web_scrape.notify_error")
+def test_lambda_handler_missing_env(mock_notify, mock_dynamo, monkeypatch):
     monkeypatch.delenv("dynamodb_table_name", raising=False)
     aws.lambda_handler({}, {})
     mock_dynamo.assert_not_called()
+    mock_notify.assert_called_once()

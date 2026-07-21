@@ -33,5 +33,5 @@ If already inside this directory, remove `-chdir=terraform`.
 
 ## Inputs/Outputs
 
-Key inputs are defined in `variables.tf` (`environment`, `twitter_username`, `aws_region`).
+Key inputs are defined in `variables.tf` (`environment`, `aws_region`, notification email variables).
 Key outputs are defined in `outputs.tf` (DynamoDB table name, Lambda ARNs, artifact bucket name).

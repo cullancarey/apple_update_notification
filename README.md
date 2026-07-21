@@ -4,22 +4,20 @@
 
 # Apple Update Notification
 
-This project automatically tracks Apple OS release changes and publishes updates to Twitter/X.
+This project automatically tracks Apple OS release changes and emails notifications through Amazon SNS.
 
 Current flow:
 
 1. `apple_web_scrape` runs on an EventBridge schedule and scrapes Apple's release page.
 2. Release data is written to DynamoDB (`apple_os_updates_<environment>`).
-3. DynamoDB stream changes trigger `apple_send_update`.
-4. `apple_send_update` formats and posts updates with Tweepy.
+3. `apple_web_scrape` sends one combined SNS email when release changes are detected.
 
 ## Architecture Snapshot
 
 ```text
 EventBridge schedule -> Lambda (apple_web_scrape)
-					 -> DynamoDB table + stream
-					 -> Lambda (apple_send_update)
-					 -> Twitter/X API
+					 -> DynamoDB table
+					 -> Amazon SNS email notification
 ```
 
 Infrastructure is managed with Terraform modules in `terraform/modules`.
@@ -68,7 +66,7 @@ terraform -chdir=terraform validate -no-color
 
 ## Notes
 
-- Lambda artifacts are uploaded as zipped packages (`apple_web_scrape.zip`, `apple_send_update.zip`).
+- Lambda artifacts are uploaded as zipped packages (`apple_web_scrape.zip`).
 - Artifact bucket has versioning enabled plus lifecycle expiration for current and noncurrent objects after 60 days.
 - CloudWatch log retention is environment-aware (development: 180 days, production: 365 days).
 
@@ -87,7 +85,7 @@ pytest -v
 # Terraform deploy (develop)
 cd terraform
 terraform init -backend-config=backend.develop.conf
-terraform apply -var="environment=develop" -var="twitter_username=<handle>"
+terraform apply -var-file=develop.tfvars
 ```
 
 ---

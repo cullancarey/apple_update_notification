@@ -13,9 +13,6 @@ updates:
       - "dependencies"
       - "python"
     ignore:
-      - dependency-name: "tweepy"
-        update-types:
-          - "version-update:semver-major"
       - dependency-name: "boto3"
         update-types:
           - "version-update:semver-major"
