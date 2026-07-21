@@ -1,13 +1,15 @@
 resource "aws_sns_topic" "lambda_error_alerts" {
   count = var.error_alert_email != null && trimspace(var.error_alert_email) != "" ? 1 : 0
 
-  name = "apple-update-notification-lambda-errors-${var.environment}"
+  name              = "apple-update-notification-lambda-errors-${var.environment}"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sns_topic" "release_notifications" {
   count = var.release_notification_email != null && trimspace(var.release_notification_email) != "" ? 1 : 0
 
-  name = "apple-update-notification-releases-${var.environment}"
+  name              = "apple-update-notification-releases-${var.environment}"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sns_topic_subscription" "lambda_error_alert_email" {
