@@ -18,11 +18,12 @@ Creates Lambda application resources, IAM permissions, and artifact uploads.
 - Function names are environment-prefixed with `apple-<environment>-<logical_name>`.
 - Lambda artifacts are uploaded from local zip files (`apple_web_scrape.zip`, `apple_send_update.zip`) to S3.
 - `apple_web_scrape` receives scheduled execution.
-- `apple_send_update` receives DynamoDB stream events.
+- `apple_send_update` receives DynamoDB stream events and publishes release notifications to SNS.
 - IAM policies include:
   - CloudWatch Logs permissions
   - DynamoDB table/stream access scoped per function
-  - SSM read access for tweet credentials only where required
+  - SNS publish access for error notifications where configured
+  - SNS publish access for release notifications on `apple_send_update` only
 
 Schedule map in module locals:
 

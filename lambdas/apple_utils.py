@@ -1,13 +1,11 @@
-"""AWS SDK utilities for Parameter Store, DynamoDB, and Twitter interactions."""
+"""AWS SDK utilities for DynamoDB and SNS notifications."""
 
 import json
 import os
 import logging
 import boto3
-import tweepy
 from botocore.config import Config
 from botocore.exceptions import ClientError, BotoCoreError
-from tweepy.errors import TweepyException
 
 # -------------------------------------------------------------------------
 # Logging Configuration
@@ -18,9 +16,9 @@ logger.setLevel(logging.INFO)
 # -------------------------------------------------------------------------
 # Constants
 # -------------------------------------------------------------------------
-PARAMETER_PREFIX = "apple_update_notification"
-TWEET_DEDUP_PREFIX = "tweet_posted"
+RELEASE_NOTIFICATION_DEDUP_PREFIX = "release_notified"
 ERROR_ALERT_TOPIC_ENV_VAR = "error_alert_topic_arn"
+RELEASE_NOTIFICATION_TOPIC_ENV_VAR = "release_notification_topic_arn"
 
 # -------------------------------------------------------------------------
 # Global AWS Session / Config (improves Lambda cold-start performance)
@@ -29,7 +27,6 @@ boto_cfg = Config(retries={"max_attempts": 5, "mode": "standard"})
 session = boto3.session.Session()
 
 # Global clients reused across invocations
-ssm_client = session.client("ssm", config=boto_cfg)
 dynamodb_resource = session.resource("dynamodb", config=boto_cfg)
 sns_client = session.client("sns", config=boto_cfg)
 
@@ -37,8 +34,8 @@ sns_client = session.client("sns", config=boto_cfg)
 # -------------------------------------------------------------------------
 # Custom Exceptions
 # -------------------------------------------------------------------------
-class ParameterRetrievalError(Exception):
-    """Raised when a Parameter Store retrieval fails."""
+class ConfigurationError(Exception):
+    """Raised when required runtime configuration is missing."""
 
     pass
 
@@ -52,50 +49,11 @@ class DynamoDBItemNotFound(Exception):
 # -------------------------------------------------------------------------
 # AWS Clients Creation
 # -------------------------------------------------------------------------
-def create_ssm_client(region_name=None):
-    """Creates and returns an SSM client (region-aware)."""
-    if not region_name:
-        return ssm_client
-    return boto3.client("ssm", region_name=region_name, config=boto_cfg)
-
-
 def create_dynamodb_resource(region_name=None):
     """Creates and returns a DynamoDB resource (region-aware)."""
     if not region_name:
         return dynamodb_resource
     return boto3.resource("dynamodb", region_name=region_name, config=boto_cfg)
-
-
-# -------------------------------------------------------------------------
-# Parameter Store Interaction
-# -------------------------------------------------------------------------
-def load_twitter_secrets(region_name=None):
-    param_names = [
-        f"{PARAMETER_PREFIX}_api_key",
-        f"{PARAMETER_PREFIX}_secret_key",
-        f"{PARAMETER_PREFIX}_twitter_access_token",
-        f"{PARAMETER_PREFIX}_access_secret_token",
-    ]
-
-    client = create_ssm_client(region_name)
-
-    try:
-        response = client.get_parameters(
-            Names=param_names,
-            WithDecryption=True,
-        )
-    except (ClientError, BotoCoreError) as e:
-        logger.error("Failed to load Twitter secrets", exc_info=True)
-        raise ParameterRetrievalError("Failed to load Twitter secrets") from e
-
-    values = {p["Name"]: p["Value"] for p in response.get("Parameters", [])}
-
-    # Optional: enforce contract loudly
-    missing = set(param_names) - values.keys()
-    if missing:
-        raise ParameterRetrievalError(f"Missing parameters: {missing}")
-
-    return values
 
 
 # -------------------------------------------------------------------------
@@ -118,19 +76,19 @@ def get_device_item(table, device: str):
         ) from err
 
 
-def mark_tweet_posted(table, device: str, release_version: str) -> bool:
+def mark_release_notified(table, device: str, release_version: str) -> bool:
     """
-    Marks a tweet as posted using a conditional put for idempotency.
+    Marks a release notification as sent using a conditional put for idempotency.
     Returns False when the same device/version was already recorded.
     """
-    dedup_key = f"{TWEET_DEDUP_PREFIX}#{device}#{release_version}"
+    dedup_key = f"{RELEASE_NOTIFICATION_DEDUP_PREFIX}#{device}#{release_version}"
 
     try:
         table.put_item(
             Item={
                 "device": dedup_key,
                 "ReleaseVersion": release_version,
-                "ReleaseStatement": f"tweeted:{device}:{release_version}",
+                "ReleaseStatement": f"notified:{device}:{release_version}",
             },
             ConditionExpression="attribute_not_exists(device)",
         )
@@ -139,18 +97,37 @@ def mark_tweet_posted(table, device: str, release_version: str) -> bool:
         error_code = err.response.get("Error", {}).get("Code")
         if error_code == "ConditionalCheckFailedException":
             logger.info(
-                "Skipping duplicate tweet event for %s release %s.",
+                "Skipping duplicate release notification for %s release %s.",
                 device,
                 release_version,
             )
             return False
         logger.error(
-            "Error writing tweet idempotency marker for %s %s: %s",
+            "Error writing release notification marker for %s %s: %s",
             device,
             release_version,
             err,
             exc_info=True,
         )
+        raise
+
+
+def publish_release_notification(subject: str, message: str) -> None:
+    """Publish a release notification to SNS when a release topic is configured."""
+    topic_arn = os.getenv(RELEASE_NOTIFICATION_TOPIC_ENV_VAR)
+    if not topic_arn:
+        raise ConfigurationError(
+            f"Environment variable '{RELEASE_NOTIFICATION_TOPIC_ENV_VAR}' is not set."
+        )
+
+    try:
+        sns_client.publish(
+            TopicArn=topic_arn,
+            Subject=subject,
+            Message=message,
+        )
+    except (ClientError, BotoCoreError):
+        logger.error("Failed to publish SNS release notification.", exc_info=True)
         raise
 
 
@@ -177,50 +154,14 @@ def notify_error(source: str, error_message: str, details: dict | None = None) -
 
 
 # -------------------------------------------------------------------------
-# Twitter Client Authentication
-# -------------------------------------------------------------------------
-def authenticate_twitter_client(region_name=None):
-    """
-    Authenticates and returns a Tweepy Twitter client.
-    Requires parameters stored in AWS SSM Parameter Store:
-    - apple_update_notification_api_key
-    - apple_update_notification_secret_key
-    - apple_update_notification_twitter_access_token
-    - apple_update_notification_access_secret_token
-    """
-    logger.info("Authenticating Twitter client.")
-
-    secrets = load_twitter_secrets(region_name=region_name)
-
-    try:
-        twitter_client = tweepy.Client(
-            consumer_key=secrets[f"{PARAMETER_PREFIX}_api_key"],
-            consumer_secret=secrets[f"{PARAMETER_PREFIX}_secret_key"],
-            access_token=secrets[f"{PARAMETER_PREFIX}_twitter_access_token"],
-            access_token_secret=secrets[f"{PARAMETER_PREFIX}_access_secret_token"],
-        )
-        logger.info("Successfully authenticated Twitter client.")
-        return twitter_client
-    except TweepyException as e:
-        logger.error(f"Tweepy authentication failed: {e}", exc_info=True)
-        raise
-    except Exception as e:
-        logger.error(
-            f"Unexpected error during Twitter authentication: {e}", exc_info=True
-        )
-        raise
-
-
-# -------------------------------------------------------------------------
 # Module Exports
 # -------------------------------------------------------------------------
 __all__ = [
-    "create_ssm_client",
     "create_dynamodb_resource",
     "get_device_item",
-    "mark_tweet_posted",
+    "mark_release_notified",
+    "publish_release_notification",
     "notify_error",
-    "authenticate_twitter_client",
-    "ParameterRetrievalError",
+    "ConfigurationError",
     "DynamoDBItemNotFound",
 ]

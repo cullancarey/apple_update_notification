@@ -35,6 +35,11 @@ variable "error_alert_topic_arn" {
   default = null
 }
 
+variable "release_notification_topic_arn" {
+  type    = string
+  default = null
+}
+
 locals {
   name_prefix = "apple-${var.environment}"
 
@@ -45,15 +50,15 @@ locals {
 
   lambda_definitions = {
     apple_web_scrape = {
-      description      = "Scrapes Apple site and updates DynamoDB"
-      dynamodb_actions = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
-      extra_ssm_access = false
-      stream_access    = false
-      schedule         = local.schedule_by_env[var.environment]
+      description                 = "Scrapes Apple site and updates DynamoDB"
+      dynamodb_actions            = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+      release_notification_access = false
+      stream_access               = false
+      schedule                    = local.schedule_by_env[var.environment]
     }
 
     apple_send_update = {
-      description = "Triggered by DynamoDB stream to tweet updates"
+      description = "Triggered by DynamoDB stream to send release notifications"
       dynamodb_actions = [
         "dynamodb:PutItem",
         "dynamodb:GetRecords",
@@ -61,8 +66,8 @@ locals {
         "dynamodb:DescribeStream",
         "dynamodb:ListStreams"
       ]
-      extra_ssm_access = true
-      stream_access    = true
+      release_notification_access = true
+      stream_access               = true
     }
   }
 
@@ -115,25 +120,23 @@ data "aws_iam_policy_document" "lambda_policies" {
   }
 
   dynamic "statement" {
-    for_each = each.value.extra_ssm_access ? [1] : []
-
-    content {
-      sid     = "ParameterStoreAccess"
-      actions = ["ssm:GetParameters"]
-      resources = [
-        "arn:aws:ssm:${var.region}:${var.account_id}:parameter/apple_update_notification_*"
-      ]
-      effect = "Allow"
-    }
-  }
-
-  dynamic "statement" {
     for_each = var.error_alert_topic_arn != null && trimspace(var.error_alert_topic_arn) != "" ? [1] : []
 
     content {
       sid       = "SnsPublishAlerts"
       actions   = ["sns:Publish"]
       resources = [var.error_alert_topic_arn]
+      effect    = "Allow"
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.value.release_notification_access && var.release_notification_topic_arn != null && trimspace(var.release_notification_topic_arn) != "" ? [1] : []
+
+    content {
+      sid       = "SnsPublishReleaseNotifications"
+      actions   = ["sns:Publish"]
+      resources = [var.release_notification_topic_arn]
       effect    = "Allow"
     }
   }
@@ -168,9 +171,10 @@ resource "aws_lambda_function" "lambda_functions" {
   environment {
     variables = merge(
       {
-        environment           = var.environment
-        dynamodb_table_name   = var.dynamodb_table_name
-        error_alert_topic_arn = var.error_alert_topic_arn
+        environment                    = var.environment
+        dynamodb_table_name            = var.dynamodb_table_name
+        error_alert_topic_arn          = var.error_alert_topic_arn
+        release_notification_topic_arn = var.release_notification_topic_arn
       },
       each.key == "apple_web_scrape" ? {
         dynamodb_table_name = var.dynamodb_table_name

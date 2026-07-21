@@ -8,11 +8,6 @@ variable "environment" {
   }
 }
 
-variable "twitter_username" {
-  type        = string
-  description = "The username of the twitter account to use."
-}
-
 variable "aws_region" {
   type        = string
   description = "AWS region where infrastructure is deployed."
@@ -22,5 +17,11 @@ variable "aws_region" {
 variable "error_alert_email" {
   type        = string
   description = "Optional email address for SNS notifications when Lambda errors occur."
+  default     = null
+}
+
+variable "release_notification_email" {
+  type        = string
+  description = "Optional email address for SNS notifications when new Apple releases are detected."
   default     = null
 }

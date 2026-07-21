@@ -182,7 +182,7 @@ def test_update_dynamodb_failure():
 #         "watchOS": "26.0.2",
 #         "tvOS": "26.0.1",
 #         "visionOS": "26.0.1",
-#         "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
+#         "release_statements": {d: "release notice" for d in aws.DEVICE_LIST},
 #     }
 #     dynamo = {"iOS": "25.0.9"}  # different version
 #     aws.compare_and_update_releases(latest, dynamo, MagicMock())
@@ -197,7 +197,7 @@ def test_update_dynamodb_failure():
 #         "watchOS": "26.0.2",
 #         "tvOS": "26.0.1",
 #         "visionOS": "26.0.1",
-#         "release_statements": {d: "tweet" for d in aws.DEVICE_LIST},
+#         "release_statements": {d: "release notice" for d in aws.DEVICE_LIST},
 #     }
 #     dynamo = {d: latest[d] for d in aws.DEVICE_LIST}
 #     aws.compare_and_update_releases(latest, dynamo, MagicMock())
@@ -224,11 +224,11 @@ def test_lambda_handler_success(
         "tvOS": "26.0.1",
         "visionOS": "26.0.1",
         "release_statements": {
-            "iOS": "tweet",
-            "macOS": "tweet",
-            "watchOS": "tweet",
-            "tvOS": "tweet",
-            "visionOS": "tweet",
+            "iOS": "release notice",
+            "macOS": "release notice",
+            "watchOS": "release notice",
+            "tvOS": "release notice",
+            "visionOS": "release notice",
         },
     }
 
