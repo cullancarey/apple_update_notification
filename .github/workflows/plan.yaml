@@ -94,7 +94,7 @@ jobs:
 
     - name: Checkov Policy Scan
       if: github.event_name == 'pull_request'
-      uses: bridgecrewio/checkov-action@v12
+      uses: bridgecrewio/checkov-action@v12.3114.0
       with:
         directory: terraform
         framework: terraform
