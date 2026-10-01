@@ -79,7 +79,7 @@ def parse_release_statements(page_content):
             continue
 
         # Extract the main sentence up to the version number
-        match = re.search(r"The latest version[^.]+?\d+(?:\.\d+)+", text)
+        match = re.search(r"The latest version[^.]+?\d+(?:\.\d+)*", text)
         if not match:
             continue
 
@@ -111,7 +111,7 @@ def extract_release_versions(release_statements):
     """Extract release versions explicitly by device."""
     releases = {}
     for device, statement in release_statements.items():
-        version_match = re.search(r"\b\d+(\.\d+)+\b", statement)
+        version_match = re.search(r"\b\d+(\.\d+)*\b", statement)
         if version_match:
             releases[device] = version_match.group(0)
         else:
